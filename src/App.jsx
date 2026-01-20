@@ -163,10 +163,10 @@ export default function App() {
   }, [selectedRoomId, selectionSource]);
 
   useEffect(() => {
-    if (state.activeRoomId || state.selectedId) {
+    if (!isMobile) {
       setMobileTab("editor");
     }
-  }, [state.activeRoomId, state.selectedId]);
+  }, [isMobile]);
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 900px)");
@@ -299,6 +299,9 @@ export default function App() {
           onClick={() => {
             setSelectionSource("list");
             setViewMode("all");
+            if (isMobile) {
+              setMobileTab("editor");
+            }
             dispatch({ type: "ADD_ROOM" });
           }}
         >
@@ -310,6 +313,9 @@ export default function App() {
           disabled={!state.activeRoomId}
           onClick={() => {
             setSelectionSource("list");
+            if (isMobile) {
+              setMobileTab("editor");
+            }
             dispatch({ type: "ADD_FURNITURE", payload: {} });
           }}
         >
