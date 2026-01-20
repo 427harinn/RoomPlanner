@@ -6,7 +6,8 @@ export default function ImportExport({ state, dispatch }) {
   const handleExport = () => {
     const payload = {
       rooms: state.rooms,
-      furnitures: state.furnitures
+      furnitures: state.furnitures,
+      gridMM: state.gridMM
     };
 
     const blob = new Blob([JSON.stringify(payload, null, 2)], {
