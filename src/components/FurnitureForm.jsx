@@ -7,7 +7,7 @@ const defaultForm = {
   color: "#8ecae6"
 };
 
-export default function FurnitureForm({ dispatch }) {
+export default function FurnitureForm({ room, dispatch }) {
   const [form, setForm] = useState(defaultForm);
 
   const update = (key, value) => {
@@ -17,6 +17,11 @@ export default function FurnitureForm({ dispatch }) {
   return (
     <div className="panel__section">
       <h2>家具追加</h2>
+      {room ? (
+        <p className="muted">追加先: {room.name}</p>
+      ) : (
+        <p className="muted">部屋を選択してください</p>
+      )}
       <div className="form-grid">
         <label>
           名前
@@ -53,6 +58,7 @@ export default function FurnitureForm({ dispatch }) {
       <button
         className="btn"
         type="button"
+        disabled={!room}
         onClick={() => dispatch({ type: "ADD_FURNITURE", payload: form })}
       >
         家具を追加

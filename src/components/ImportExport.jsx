@@ -5,10 +5,7 @@ export default function ImportExport({ state, dispatch }) {
 
   const handleExport = () => {
     const payload = {
-      room: {
-        width: state.room.width,
-        height: state.room.height
-      },
+      rooms: state.rooms,
       furnitures: state.furnitures
     };
 
