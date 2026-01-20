@@ -22,8 +22,5 @@ export const getScaleForRooms = (rooms, maxW = CONFIG.maxW, maxH = CONFIG.maxH) 
 };
 
 export const getDisplaySize = furniture => {
-  if (furniture.rotation === 90) {
-    return { w: furniture.height, h: furniture.width };
-  }
   return { w: furniture.width, h: furniture.height };
 };
