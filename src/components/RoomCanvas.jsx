@@ -7,8 +7,21 @@ export default function RoomCanvas({
   furnitures,
   selectedId,
   activeRoomId,
+  viewMode,
+  viewRoomId,
+  canToggleViewMode,
+  onToggleViewMode,
+  gridMM,
   dispatch
 }) {
+  const ROOM_LABEL_MAX = 44;
+  const ROOM_DIM_MAX = 40;
+  const FURN_LABEL_MAX = 64;
+  const FURN_DIM_MAX = 58;
+  const formatMeters = value => {
+    const meters = value / 1000;
+    return `${meters.toFixed(5).replace(/\.?0+$/, "")} m`;
+  };
   const containerRef = useRef(null);
   const svgRef = useRef(null);
   const [isDraggingRoom, setIsDraggingRoom] = useState(false);
@@ -25,11 +38,35 @@ export default function RoomCanvas({
     scale: null
   });
   const handlerRef = useRef({ onMouseMove: null, onMouseUp: null });
+  const handleGridDoubleClick = useCallback(() => {
+    const currentMeters = Number((gridMM / 1000).toFixed(5)).toString();
+    const next = window.prompt("Grid size (m):", currentMeters);
+    if (next === null) return;
+    const parsed = Number(next);
+    if (!Number.isFinite(parsed) || parsed <= 0) return;
+    dispatch({ type: "SET_GRID_MM", payload: Math.max(1, Math.round(parsed * 1000)) });
+  }, [dispatch, gridMM]);
 
-  const liveBounds = getRoomsBounds(rooms);
+  const visibleRooms =
+    viewMode === "room" && viewRoomId
+      ? rooms.filter(room => room.id === viewRoomId)
+      : rooms;
+  const liveBounds =
+    viewMode === "room" && viewRoomId && visibleRooms[0]
+      ? {
+          minX: 0,
+          minY: 0,
+          width: visibleRooms[0].width,
+          height: visibleRooms[0].height
+        }
+      : getRoomsBounds(visibleRooms);
+  const origin =
+    viewMode === "room" && viewRoomId && visibleRooms[0]
+      ? { x: visibleRooms[0].x, y: visibleRooms[0].y }
+      : { x: 0, y: 0 };
   const maxW = Math.max(1, containerSize.width - CONFIG.margin * 2);
   const maxH = Math.max(1, containerSize.height - CONFIG.margin * 2);
-  const liveScale = getScaleForRooms(rooms, maxW, maxH);
+  const liveScale = getScaleForRooms(visibleRooms, maxW, maxH);
   const scale =
     dragRef.current.active && dragRef.current.kind === "room" && dragRef.current.scale
       ? dragRef.current.scale
@@ -156,10 +193,15 @@ export default function RoomCanvas({
       if (!id) return;
 
       if (kind === "room") {
+        if (viewMode === "room") return;
         const room = rooms.find(item => item.id === id);
         if (!room) return;
-        const x = (event.clientX - rect.left - offsetX - dragOffsetX) / scale;
-        const y = (event.clientY - rect.top - offsetY - dragOffsetY) / scale;
+        const x =
+          (event.clientX - rect.left - offsetX - dragOffsetX) / scale +
+          origin.x;
+        const y =
+          (event.clientY - rect.top - offsetY - dragOffsetY) / scale +
+          origin.y;
         const snapped = snapRoomPosition({ ...room, x, y });
         dispatch({
           type: "MOVE_ROOM",
@@ -173,21 +215,25 @@ export default function RoomCanvas({
       const room = rooms.find(item => item.id === target.roomId);
 
       if (room) {
-        const x =
-          (event.clientX - rect.left - offsetX - dragOffsetX) / scale -
-          room.x;
-        const y =
-          (event.clientY - rect.top - offsetY - dragOffsetY) / scale -
-          room.y;
+        const worldX =
+          (event.clientX - rect.left - offsetX - dragOffsetX) / scale +
+          origin.x;
+        const worldY =
+          (event.clientY - rect.top - offsetY - dragOffsetY) / scale +
+          origin.y;
+        const x = worldX - room.x;
+        const y = worldY - room.y;
         dispatch({
           type: "MOVE_FURNITURE",
-          payload: { id, x, y, absX: room.x + x, absY: room.y + y }
+          payload: { id, x, y, absX: worldX, absY: worldY }
         });
       } else {
         const x =
-          (event.clientX - rect.left - offsetX - dragOffsetX) / scale;
+          (event.clientX - rect.left - offsetX - dragOffsetX) / scale +
+          origin.x;
         const y =
-          (event.clientY - rect.top - offsetY - dragOffsetY) / scale;
+          (event.clientY - rect.top - offsetY - dragOffsetY) / scale +
+          origin.y;
         dispatch({
           type: "MOVE_FURNITURE",
           payload: { id, x, y, absX: x, absY: y }
@@ -244,11 +290,11 @@ export default function RoomCanvas({
       offsetX:
         event.clientX -
         rect.left -
-        (offsetX + baseX * scale),
+        (offsetX + (baseX - origin.x) * scale),
       offsetY:
         event.clientY -
         rect.top -
-        (offsetY + baseY * scale)
+        (offsetY + (baseY - origin.y) * scale)
     };
 
     window.addEventListener("mousemove", onMouseMove);
@@ -257,6 +303,7 @@ export default function RoomCanvas({
 
   const startRoomDrag = (event, room) => {
     event.stopPropagation();
+    if (viewMode === "room") return;
     if (!svgRef.current) return;
     if (room.id !== activeRoomId) {
       dispatch({ type: "SET_ACTIVE_ROOM", payload: room.id });
@@ -269,8 +316,10 @@ export default function RoomCanvas({
       active: true,
       kind: "room",
       id: room.id,
-      offsetX: event.clientX - rect.left - (offsetX + room.x * scale),
-      offsetY: event.clientY - rect.top - (offsetY + room.y * scale),
+      offsetX:
+        event.clientX - rect.left - (offsetX + (room.x - origin.x) * scale),
+      offsetY:
+        event.clientY - rect.top - (offsetY + (room.y - origin.y) * scale),
       scale: dragScale
     };
     setIsDraggingRoom(true);
@@ -304,14 +353,14 @@ export default function RoomCanvas({
     };
   }, [stopDragging]);
 
-  const roomGrid = rooms.flatMap(room => {
+  const roomGrid = visibleRooms.flatMap(room => {
     const lines = [];
-    const roomX = offsetX + room.x * scale;
-    const roomY = offsetY + room.y * scale;
+    const roomX = offsetX + (room.x - origin.x) * scale;
+    const roomY = offsetY + (room.y - origin.y) * scale;
     const roomW = room.width * scale;
     const roomH = room.height * scale;
 
-    for (let x = 0; x <= room.width; x += CONFIG.gridMM) {
+    for (let x = 0; x <= room.width; x += gridMM) {
       const px = roomX + x * scale;
       lines.push(
         <line
@@ -326,7 +375,7 @@ export default function RoomCanvas({
       );
     }
 
-    for (let y = 0; y <= room.height; y += CONFIG.gridMM) {
+    for (let y = 0; y <= room.height; y += gridMM) {
       const py = roomY + y * scale;
       lines.push(
         <line
@@ -349,6 +398,16 @@ export default function RoomCanvas({
       className={`canvas-wrap${isDraggingRoom ? " canvas-wrap--drag" : ""}`}
       ref={containerRef}
     >
+      <div className="canvas-toolbar">
+        <button
+          className="btn btn--ghost btn--small"
+          type="button"
+          onClick={onToggleViewMode}
+          disabled={viewMode === "all" && !canToggleViewMode}
+        >
+          {viewMode === "all" ? "部屋表示" : "全体表示"}
+        </button>
+      </div>
       <svg
         ref={svgRef}
         width={width + CONFIG.margin * 2}
@@ -356,12 +415,17 @@ export default function RoomCanvas({
       >
         {roomGrid}
 
-        {rooms.map(room => {
-          const roomX = offsetX + room.x * scale;
-          const roomY = offsetY + room.y * scale;
+        {visibleRooms.map(room => {
+          const roomX = offsetX + (room.x - origin.x) * scale;
+          const roomY = offsetY + (room.y - origin.y) * scale;
           const roomW = room.width * scale;
           const roomH = room.height * scale;
           const isActive = room.id === activeRoomId;
+          const roomBase = Math.min(roomW, roomH);
+          const labelSize = Math.min(ROOM_LABEL_MAX, Math.max(8, roomBase * 0.08));
+          const dimSize = Math.min(ROOM_DIM_MAX, Math.max(8, roomBase * 0.07));
+          const nameOffset = Math.max(6, labelSize * 0.7);
+          const sideOffset = Math.max(10, dimSize * 0.7);
 
           return (
             <g key={room.id}>
@@ -386,41 +450,66 @@ export default function RoomCanvas({
                 strokeWidth={isActive ? "3" : "2"}
                 pointerEvents="none"
               />
-              <text x={roomX + 8} y={roomY - 10} fontSize="12" pointerEvents="none">
+              <text
+                x={roomX + 8}
+                y={roomY - nameOffset}
+                fontSize={labelSize}
+                pointerEvents="none"
+              >
                 {room.name}
               </text>
               <text
                 x={roomX + roomW / 2}
-                y={roomY - 10}
+                y={roomY - nameOffset}
                 textAnchor="middle"
+                fontSize={dimSize}
                 pointerEvents="none"
               >
-                {room.width} mm
+                {formatMeters(room.width)}
               </text>
               <text
-                x={roomX - 20}
+                x={roomX - sideOffset}
                 y={roomY + roomH / 2}
-                transform={`rotate(-90 ${roomX - 20} ${roomY + roomH / 2})`}
+                transform={`rotate(-90 ${roomX - sideOffset} ${
+                  roomY + roomH / 2
+                })`}
                 textAnchor="middle"
+                fontSize={dimSize}
                 pointerEvents="none"
               >
-                {room.height} mm
+                {formatMeters(room.height)}
               </text>
             </g>
           );
         })}
 
-        <text x={CONFIG.margin} y={CONFIG.margin + height + 25} fontSize="12">
-          Grid: {CONFIG.gridMM} mm
+        <text
+          x={CONFIG.margin}
+          y={CONFIG.margin + height + 25}
+          fontSize={Math.min(64, Math.max(12, 28 * scale))}
+          onDoubleClick={handleGridDoubleClick}
+        >
+          Grid: {formatMeters(gridMM)}
         </text>
 
-        {furnitures.map(item => {
+        {furnitures
+          .filter(item =>
+            viewMode === "room" && viewRoomId
+              ? item.roomId === viewRoomId
+              : true
+          )
+          .map(item => {
           const { w, h } = getDisplaySize(item);
           const room = rooms.find(entry => entry.id === item.roomId);
           const baseX = room ? room.x + item.x : item.x;
           const baseY = room ? room.y + item.y : item.y;
-          const x = offsetX + baseX * scale;
-          const y = offsetY + baseY * scale;
+          const x = offsetX + (baseX - origin.x) * scale;
+          const y = offsetY + (baseY - origin.y) * scale;
+          const itemWidth = w * scale;
+          const itemHeight = h * scale;
+          const itemBase = Math.min(itemWidth, itemHeight);
+          const labelSize = Math.min(FURN_LABEL_MAX, Math.max(6, itemBase * 0.16));
+          const dimSize = Math.min(FURN_DIM_MAX, Math.max(6, itemBase * 0.13));
 
           return (
             <g
@@ -439,11 +528,21 @@ export default function RoomCanvas({
                 stroke={item.id === selectedId ? "red" : "#333"}
                 strokeWidth="2"
               />
-              <text x={x + (w * scale) / 2} y={y + (h * scale) / 2 - 6} textAnchor="middle" fontSize="12">
+              <text
+                x={x + (w * scale) / 2}
+                y={y + (h * scale) / 2 - dimSize * 0.4}
+                textAnchor="middle"
+                fontSize={labelSize}
+              >
                 {item.name}
               </text>
-              <text x={x + (w * scale) / 2} y={y + (h * scale) / 2 + 10} textAnchor="middle" fontSize="10">
-                {item.width} × {item.height} mm
+              <text
+                x={x + (w * scale) / 2}
+                y={y + (h * scale) / 2 + dimSize * 0.8}
+                textAnchor="middle"
+                fontSize={dimSize}
+              >
+                {formatMeters(item.width)} × {formatMeters(item.height)}
               </text>
             </g>
           );

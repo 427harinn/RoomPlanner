@@ -1,173 +1,205 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 
-export default function FurnitureEditor({ furniture, dispatch }) {
+const mmToM = value => value / 1000;
+const mToMm = value => Number(value) * 1000;
+
+export default function FurnitureEditor({ furniture, isMobile, dispatch }) {
+  const [sizeOpen, setSizeOpen] = useState(!isMobile);
+  const [radiusOpen, setRadiusOpen] = useState(!isMobile);
+
+  useEffect(() => {
+    setSizeOpen(!isMobile);
+    setRadiusOpen(!isMobile);
+  }, [isMobile]);
   return (
     <div className="panel__section">
       <h2>選択中の家具を編集</h2>
       {!furniture ? (
         <p className="muted">家具を選択してください</p>
       ) : (
-        <div className="form-grid">
-          <label>
-            名前
-            <input
-              value={furniture.name}
-              onChange={e =>
-                dispatch({
-                  type: "UPDATE_FURNITURE",
-                  payload: {
-                    id: furniture.id,
-                    updates: { name: e.target.value }
-                  }
-                })
-              }
-            />
-          </label>
-          <label>
-            横(mm)
-            <input
-              type="number"
-              value={furniture.width}
-              onChange={e =>
-                dispatch({
-                  type: "UPDATE_FURNITURE",
-                  payload: {
-                    id: furniture.id,
-                    updates: { width: e.target.value }
-                  }
-                })
-              }
-            />
-          </label>
-          <label>
-            縦(mm)
-            <input
-              type="number"
-              value={furniture.height}
-              onChange={e =>
-                dispatch({
-                  type: "UPDATE_FURNITURE",
-                  payload: {
-                    id: furniture.id,
-                    updates: { height: e.target.value }
-                  }
-                })
-              }
-            />
-          </label>
-          <label>
-            色
-            <input
-              type="color"
-              value={furniture.color}
-              onChange={e =>
-                dispatch({
-                  type: "UPDATE_FURNITURE",
-                  payload: {
-                    id: furniture.id,
-                    updates: { color: e.target.value }
-                  }
-                })
-              }
-            />
-          </label>
-          <label>
-            角丸 左上(°)
-            <div className="range-field">
+        <>
+          <div className="form-grid editor-group editor-group--open">
+            <label>
+              名前
               <input
-                type="range"
-                min="0"
-                max="90"
-                step="1"
-                value={furniture.radius?.tl ?? 0}
+                value={furniture.name}
                 onChange={e =>
                   dispatch({
                     type: "UPDATE_FURNITURE",
                     payload: {
                       id: furniture.id,
-                      updates: {
-                        radius: { ...furniture.radius, tl: e.target.value }
-                      }
+                      updates: { name: e.target.value }
                     }
                   })
                 }
               />
-              <span>{furniture.radius?.tl ?? 0}°</span>
-            </div>
-          </label>
-          <label>
-            角丸 右上(°)
-            <div className="range-field">
+            </label>
+            <label>
+              色
               <input
-                type="range"
-                min="0"
-                max="90"
-                step="1"
-                value={furniture.radius?.tr ?? 0}
+                type="color"
+                value={furniture.color}
                 onChange={e =>
                   dispatch({
                     type: "UPDATE_FURNITURE",
                     payload: {
                       id: furniture.id,
-                      updates: {
-                        radius: { ...furniture.radius, tr: e.target.value }
-                      }
+                      updates: { color: e.target.value }
                     }
                   })
                 }
               />
-              <span>{furniture.radius?.tr ?? 0}°</span>
-            </div>
-          </label>
-          <label>
-            角丸 右下(°)
-            <div className="range-field">
+            </label>
+          </div>
+          <details
+            className="editor-group"
+            open={sizeOpen}
+            onToggle={event => setSizeOpen(event.currentTarget.open)}
+          >
+            <summary>サイズ</summary>
+            <div className="form-grid">
+            <label>
+              横(m)
               <input
-                type="range"
-                min="0"
-                max="90"
-                step="1"
-                value={furniture.radius?.br ?? 0}
+                type="number"
+                step="0.01"
+                value={mmToM(furniture.width)}
                 onChange={e =>
                   dispatch({
                     type: "UPDATE_FURNITURE",
                     payload: {
                       id: furniture.id,
-                      updates: {
-                        radius: { ...furniture.radius, br: e.target.value }
-                      }
+                      updates: { width: mToMm(e.target.value) }
                     }
                   })
                 }
               />
-              <span>{furniture.radius?.br ?? 0}°</span>
-            </div>
-          </label>
-          <label>
-            角丸 左下(°)
-            <div className="range-field">
+            </label>
+            <label>
+              縦(m)
               <input
-                type="range"
-                min="0"
-                max="90"
-                step="1"
-                value={furniture.radius?.bl ?? 0}
+                type="number"
+                step="0.01"
+                value={mmToM(furniture.height)}
                 onChange={e =>
                   dispatch({
                     type: "UPDATE_FURNITURE",
                     payload: {
                       id: furniture.id,
-                      updates: {
-                        radius: { ...furniture.radius, bl: e.target.value }
-                      }
+                      updates: { height: mToMm(e.target.value) }
                     }
                   })
                 }
               />
-              <span>{furniture.radius?.bl ?? 0}°</span>
+            </label>
             </div>
-          </label>
-        </div>
+          </details>
+          <details
+            className="editor-group"
+            open={radiusOpen}
+            onToggle={event => setRadiusOpen(event.currentTarget.open)}
+          >
+            <summary>角丸</summary>
+            <div className="form-grid">
+              <label>
+                左上(°)
+                <div className="range-field">
+                  <input
+                    type="range"
+                    min="0"
+                    max="90"
+                    step="1"
+                    value={furniture.radius?.tl ?? 0}
+                    onChange={e =>
+                      dispatch({
+                        type: "UPDATE_FURNITURE",
+                        payload: {
+                          id: furniture.id,
+                          updates: {
+                            radius: { ...furniture.radius, tl: e.target.value }
+                          }
+                        }
+                      })
+                    }
+                  />
+                  <span>{furniture.radius?.tl ?? 0}°</span>
+                </div>
+              </label>
+              <label>
+                右上(°)
+                <div className="range-field">
+                  <input
+                    type="range"
+                    min="0"
+                    max="90"
+                    step="1"
+                    value={furniture.radius?.tr ?? 0}
+                    onChange={e =>
+                      dispatch({
+                        type: "UPDATE_FURNITURE",
+                        payload: {
+                          id: furniture.id,
+                          updates: {
+                            radius: { ...furniture.radius, tr: e.target.value }
+                          }
+                        }
+                      })
+                    }
+                  />
+                  <span>{furniture.radius?.tr ?? 0}°</span>
+                </div>
+              </label>
+              <label>
+                右下(°)
+                <div className="range-field">
+                  <input
+                    type="range"
+                    min="0"
+                    max="90"
+                    step="1"
+                    value={furniture.radius?.br ?? 0}
+                    onChange={e =>
+                      dispatch({
+                        type: "UPDATE_FURNITURE",
+                        payload: {
+                          id: furniture.id,
+                          updates: {
+                            radius: { ...furniture.radius, br: e.target.value }
+                          }
+                        }
+                      })
+                    }
+                  />
+                  <span>{furniture.radius?.br ?? 0}°</span>
+                </div>
+              </label>
+              <label>
+                左下(°)
+                <div className="range-field">
+                  <input
+                    type="range"
+                    min="0"
+                    max="90"
+                    step="1"
+                    value={furniture.radius?.bl ?? 0}
+                    onChange={e =>
+                      dispatch({
+                        type: "UPDATE_FURNITURE",
+                        payload: {
+                          id: furniture.id,
+                          updates: {
+                            radius: { ...furniture.radius, bl: e.target.value }
+                          }
+                        }
+                      })
+                    }
+                  />
+                  <span>{furniture.radius?.bl ?? 0}°</span>
+                </div>
+              </label>
+            </div>
+          </details>
+        </>
       )}
       <div className="editor-actions">
         <button

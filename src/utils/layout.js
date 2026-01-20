@@ -5,14 +5,18 @@ export const getRoomsBounds = rooms => {
     return { minX: 0, minY: 0, width: 0, height: 0 };
   }
 
-  let maxX = 0;
-  let maxY = 0;
+  let minX = rooms[0].x;
+  let minY = rooms[0].y;
+  let maxX = rooms[0].x + rooms[0].width;
+  let maxY = rooms[0].y + rooms[0].height;
   rooms.forEach(room => {
+    minX = Math.min(minX, room.x);
+    minY = Math.min(minY, room.y);
     maxX = Math.max(maxX, room.x + room.width);
     maxY = Math.max(maxY, room.y + room.height);
   });
 
-  return { minX: 0, minY: 0, width: maxX, height: maxY };
+  return { minX, minY, width: maxX - minX, height: maxY - minY };
 };
 
 export const getScaleForRooms = (rooms, maxW = CONFIG.maxW, maxH = CONFIG.maxH) => {

@@ -95,6 +95,12 @@ export default function App() {
     id: null,
     value: ""
   });
+  const [mobileTab, setMobileTab] = useState("list");
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(max-width: 900px)").matches;
+  });
+  const [viewMode, setViewMode] = useState("all");
   const clipboardRef = useRef({ type: null, data: null });
   const selectedRoomId =
     state.activeRoomId ??
@@ -104,6 +110,13 @@ export default function App() {
 
   const showRoomEditor = Boolean(state.activeRoomId);
   const showFurnitureEditor = Boolean(state.selectedId);
+  const viewRoomId =
+    viewMode === "room"
+      ? state.activeRoomId ?? selectedFurniture?.roomId ?? null
+      : null;
+  const canToggleViewMode = Boolean(
+    state.activeRoomId || selectedFurniture?.roomId
+  );
   const latestStateRef = useRef(state);
   const latestRoomRef = useRef(activeRoom);
   const latestFurnitureRef = useRef(selectedFurniture);
@@ -148,6 +161,30 @@ export default function App() {
       setOpenRooms(prev => ({ ...prev, [selectedRoomId]: true }));
     }
   }, [selectedRoomId, selectionSource]);
+
+  useEffect(() => {
+    if (state.activeRoomId || state.selectedId) {
+      setMobileTab("editor");
+    }
+  }, [state.activeRoomId, state.selectedId]);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 900px)");
+    const update = () => setIsMobile(media.matches);
+    update();
+    if (media.addEventListener) {
+      media.addEventListener("change", update);
+    } else {
+      media.addListener(update);
+    }
+    return () => {
+      if (media.removeEventListener) {
+        media.removeEventListener("change", update);
+      } else {
+        media.removeListener(update);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const onKeyDown = event => {
@@ -253,6 +290,268 @@ export default function App() {
     dispatch(action);
   };
 
+  const listContent = (
+    <>
+      <div className="panel__section panel__section--actions">
+        <button
+          className="btn btn--ghost"
+          type="button"
+          onClick={() => {
+            setSelectionSource("list");
+            setViewMode("all");
+            dispatch({ type: "ADD_ROOM" });
+          }}
+        >
+          部屋を追加
+        </button>
+        <button
+          className="btn"
+          type="button"
+          disabled={!state.activeRoomId}
+          onClick={() => {
+            setSelectionSource("list");
+            dispatch({ type: "ADD_FURNITURE", payload: {} });
+          }}
+        >
+          家具を追加
+        </button>
+      </div>
+      <div className="panel__section panel__section--list">
+        <h2>部屋 / 家具</h2>
+        <ul className="object-list">
+          {state.rooms.map(room => {
+            const roomFurnitures = state.furnitures.filter(
+              item => item.roomId === room.id
+            );
+            const isOpen = Boolean(openRooms[room.id]);
+            const isEditingRoom =
+              editing.type === "room" && editing.id === room.id;
+            return (
+              <li key={room.id} className="object-list__item">
+                <details
+                  className="object-list__group"
+                  open={isOpen}
+                  onToggle={event => {
+                    const isOpenNext = event.currentTarget?.open ?? false;
+                    setOpenRooms(prev => ({
+                      ...prev,
+                      [room.id]: isOpenNext
+                    }));
+                  }}
+                >
+                  <summary
+                    className={`object-list__summary${
+                      state.activeRoomId === room.id ? " is-selected" : ""
+                    }`}
+                    onClick={() => {
+                      setSelectionSource("list");
+                      dispatch({
+                        type: "SET_ACTIVE_ROOM",
+                        payload: room.id
+                      });
+                    }}
+                    onDoubleClick={event => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      setSelectionSource("list");
+                      startEditing("room", room.id, room.name);
+                    }}
+                  >
+                    <span className="object-list__toggle" aria-hidden="true" />
+                    {isEditingRoom ? (
+                      <input
+                        className="inline-input"
+                        value={editing.value}
+                        autoFocus
+                        onChange={event =>
+                          setEditing(prev => ({
+                            ...prev,
+                            value: event.target.value
+                          }))
+                        }
+                        onBlur={commitEditing}
+                        onKeyDown={event => {
+                          if (event.key === "Enter") {
+                            commitEditing();
+                          }
+                          if (event.key === "Escape") {
+                            cancelEditing();
+                          }
+                        }}
+                      />
+                    ) : (
+                      room.name
+                    )}
+                  </summary>
+                  <ul className="object-list__children">
+                    {roomFurnitures.map(item => (
+                      <li key={item.id} className="object-list__child">
+                        {editing.type === "furniture" &&
+                        editing.id === item.id ? (
+                          <input
+                            className="inline-input inline-input--child"
+                            value={editing.value}
+                            autoFocus
+                            onChange={event =>
+                              setEditing(prev => ({
+                                ...prev,
+                                value: event.target.value
+                              }))
+                            }
+                            onBlur={commitEditing}
+                            onKeyDown={event => {
+                              if (event.key === "Enter") {
+                                commitEditing();
+                              }
+                              if (event.key === "Escape") {
+                                cancelEditing();
+                              }
+                            }}
+                          />
+                        ) : (
+                          <button
+                            type="button"
+                            className={`object-list__button object-list__button--child${
+                              state.selectedId === item.id ? " is-selected" : ""
+                            }`}
+                            onClick={() => {
+                              setSelectionSource("list");
+                              dispatch({
+                                type: "SELECT_FURNITURE",
+                                payload: item.id
+                              });
+                            }}
+                            onDoubleClick={event => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              setSelectionSource("list");
+                              startEditing("furniture", item.id, item.name);
+                            }}
+                          >
+                            {item.name}
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                    {roomFurnitures.length === 0 && (
+                      <li className="object-list__empty">家具なし</li>
+                    )}
+                  </ul>
+                </details>
+              </li>
+            );
+          })}
+          {state.furnitures.some(item => !item.roomId) && (
+            <li className="object-list__item">
+              <details
+                className="object-list__group"
+                open={Boolean(openRooms.unassigned)}
+                onToggle={event => {
+                  const isOpenNext = event.currentTarget?.open ?? false;
+                  setOpenRooms(prev => ({
+                    ...prev,
+                    unassigned: isOpenNext
+                  }));
+                }}
+              >
+                <summary
+                  className={`object-list__summary${
+                    selectedRoomId === "unassigned" ? " is-selected" : ""
+                  }`}
+                >
+                  <span className="object-list__toggle" aria-hidden="true" />
+                  未割り当て
+                </summary>
+                <ul className="object-list__children">
+                  {state.furnitures
+                    .filter(item => !item.roomId)
+                    .map(item => (
+                      <li key={item.id} className="object-list__child">
+                        {editing.type === "furniture" &&
+                        editing.id === item.id ? (
+                          <input
+                            className="inline-input inline-input--child"
+                            value={editing.value}
+                            autoFocus
+                            onChange={event =>
+                              setEditing(prev => ({
+                                ...prev,
+                                value: event.target.value
+                              }))
+                            }
+                            onBlur={commitEditing}
+                            onKeyDown={event => {
+                              if (event.key === "Enter") {
+                                commitEditing();
+                              }
+                              if (event.key === "Escape") {
+                                cancelEditing();
+                              }
+                            }}
+                          />
+                        ) : (
+                          <button
+                            type="button"
+                            className={`object-list__button object-list__button--child${
+                              state.selectedId === item.id ? " is-selected" : ""
+                            }`}
+                            onClick={() => {
+                              setSelectionSource("list");
+                              dispatch({
+                                type: "SELECT_FURNITURE",
+                                payload: item.id
+                              });
+                            }}
+                            onDoubleClick={event => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              setSelectionSource("list");
+                              startEditing("furniture", item.id, item.name);
+                            }}
+                          >
+                            {item.name}
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                </ul>
+              </details>
+            </li>
+          )}
+        </ul>
+      </div>
+    </>
+  );
+
+  const renderEditorContent = defaultOpen => (
+    <>
+      {showRoomEditor && (
+        <RoomEditor
+          room={activeRoom}
+          roomsCount={state.rooms.length}
+          isMobile={!defaultOpen}
+          dispatch={dispatch}
+        />
+      )}
+      {showFurnitureEditor && !showRoomEditor && (
+        <FurnitureEditor
+          furniture={selectedFurniture}
+          isMobile={!defaultOpen}
+          dispatch={dispatch}
+        />
+      )}
+      {!showRoomEditor && !showFurnitureEditor && (
+        <div className="panel__section">
+          <h2>編集</h2>
+          <p className="muted">左の一覧から部屋か家具を選択してください</p>
+        </div>
+      )}
+    </>
+  );
+
+  const editorContentDesktop = renderEditorContent(true);
+  const editorContentMobile = renderEditorContent(false);
+
   return (
     <div className="app">
       <header className="app__header">
@@ -279,237 +578,7 @@ export default function App() {
       </header>
 
       <div className="app__columns">
-        <section className="panel panel--list">
-          <div className="panel__section panel__section--list">
-            <h2>部屋 / 家具</h2>
-            <ul className="object-list">
-              {state.rooms.map(room => {
-                const roomFurnitures = state.furnitures.filter(
-                  item => item.roomId === room.id
-                );
-                const isOpen = Boolean(openRooms[room.id]);
-                const isEditingRoom =
-                  editing.type === "room" && editing.id === room.id;
-                return (
-                  <li key={room.id} className="object-list__item">
-                    <details
-                      className="object-list__group"
-                      open={isOpen}
-                      onToggle={event => {
-                        const isOpenNext = event.currentTarget?.open ?? false;
-                        setOpenRooms(prev => ({
-                          ...prev,
-                          [room.id]: isOpenNext
-                        }));
-                      }}
-                    >
-                      <summary
-                        className={`object-list__summary${
-                          state.activeRoomId === room.id ? " is-selected" : ""
-                        }`}
-                        onClick={() => {
-                          setSelectionSource("list");
-                          dispatch({
-                            type: "SET_ACTIVE_ROOM",
-                            payload: room.id
-                          });
-                        }}
-                        onDoubleClick={event => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          setSelectionSource("list");
-                          startEditing("room", room.id, room.name);
-                        }}
-                      >
-                        <span className="object-list__toggle" aria-hidden="true" />
-                        {isEditingRoom ? (
-                          <input
-                            className="inline-input"
-                            value={editing.value}
-                            autoFocus
-                            onChange={event =>
-                              setEditing(prev => ({
-                                ...prev,
-                                value: event.target.value
-                              }))
-                            }
-                            onBlur={commitEditing}
-                            onKeyDown={event => {
-                              if (event.key === "Enter") {
-                                commitEditing();
-                              }
-                              if (event.key === "Escape") {
-                                cancelEditing();
-                              }
-                            }}
-                          />
-                        ) : (
-                          room.name
-                        )}
-                      </summary>
-                      <ul className="object-list__children">
-                      {roomFurnitures.map(item => (
-                        <li key={item.id} className="object-list__child">
-                          {editing.type === "furniture" &&
-                          editing.id === item.id ? (
-                            <input
-                              className="inline-input inline-input--child"
-                              value={editing.value}
-                              autoFocus
-                              onChange={event =>
-                                setEditing(prev => ({
-                                  ...prev,
-                                  value: event.target.value
-                                }))
-                              }
-                              onBlur={commitEditing}
-                              onKeyDown={event => {
-                                if (event.key === "Enter") {
-                                  commitEditing();
-                                }
-                                if (event.key === "Escape") {
-                                  cancelEditing();
-                                }
-                              }}
-                            />
-                          ) : (
-                          <button
-                            type="button"
-                            className={`object-list__button object-list__button--child${
-                              state.selectedId === item.id ? " is-selected" : ""
-                            }`}
-                            onClick={() => {
-                              setSelectionSource("list");
-                              dispatch({
-                                type: "SELECT_FURNITURE",
-                                payload: item.id
-                              });
-                            }}
-                            onDoubleClick={event => {
-                              event.preventDefault();
-                              event.stopPropagation();
-                              setSelectionSource("list");
-                              startEditing("furniture", item.id, item.name);
-                            }}
-                          >
-                            {item.name}
-                          </button>
-                          )}
-                        </li>
-                      ))}
-                      {roomFurnitures.length === 0 && (
-                        <li className="object-list__empty">家具なし</li>
-                      )}
-                      </ul>
-                    </details>
-                  </li>
-                );
-              })}
-              {state.furnitures.some(item => !item.roomId) && (
-                <li className="object-list__item">
-                  <details
-                    className="object-list__group"
-                    open={Boolean(openRooms.unassigned)}
-                    onToggle={event => {
-                      const isOpenNext = event.currentTarget?.open ?? false;
-                      setOpenRooms(prev => ({
-                        ...prev,
-                        unassigned: isOpenNext
-                      }));
-                    }}
-                  >
-                    <summary
-                      className={`object-list__summary${
-                        selectedRoomId === "unassigned" ? " is-selected" : ""
-                      }`}
-                    >
-                      <span className="object-list__toggle" aria-hidden="true" />
-                      未割り当て
-                    </summary>
-                    <ul className="object-list__children">
-                      {state.furnitures
-                        .filter(item => !item.roomId)
-                        .map(item => (
-                          <li key={item.id} className="object-list__child">
-                            {editing.type === "furniture" &&
-                            editing.id === item.id ? (
-                              <input
-                                className="inline-input inline-input--child"
-                                value={editing.value}
-                                autoFocus
-                                onChange={event =>
-                                  setEditing(prev => ({
-                                    ...prev,
-                                    value: event.target.value
-                                  }))
-                                }
-                                onBlur={commitEditing}
-                                onKeyDown={event => {
-                                  if (event.key === "Enter") {
-                                    commitEditing();
-                                  }
-                                  if (event.key === "Escape") {
-                                    cancelEditing();
-                                  }
-                                }}
-                              />
-                            ) : (
-                              <button
-                                type="button"
-                                className={`object-list__button object-list__button--child${
-                                  state.selectedId === item.id
-                                    ? " is-selected"
-                                    : ""
-                                }`}
-                                onClick={() => {
-                                  setSelectionSource("list");
-                                  dispatch({
-                                    type: "SELECT_FURNITURE",
-                                    payload: item.id
-                                  });
-                                }}
-                                onDoubleClick={event => {
-                                  event.preventDefault();
-                                  event.stopPropagation();
-                                  setSelectionSource("list");
-                                  startEditing("furniture", item.id, item.name);
-                                }}
-                              >
-                                {item.name}
-                              </button>
-                            )}
-                          </li>
-                        ))}
-                    </ul>
-                  </details>
-                </li>
-              )}
-            </ul>
-          </div>
-          <div className="panel__section panel__section--actions">
-            <button
-              className="btn btn--ghost"
-              type="button"
-              onClick={() => {
-                setSelectionSource("list");
-                dispatch({ type: "ADD_ROOM" });
-              }}
-            >
-              部屋を追加
-            </button>
-            <button
-              className="btn"
-              type="button"
-              disabled={!state.activeRoomId}
-              onClick={() => {
-                setSelectionSource("list");
-                dispatch({ type: "ADD_FURNITURE", payload: {} });
-              }}
-            >
-              家具を追加
-            </button>
-          </div>
-        </section>
+        <section className="panel panel--list">{listContent}</section>
 
         <section className="panel panel--canvas">
           <RoomCanvas
@@ -517,31 +586,44 @@ export default function App() {
             furnitures={state.furnitures}
             selectedId={state.selectedId}
             activeRoomId={state.activeRoomId}
+            viewMode={viewMode}
+            viewRoomId={viewRoomId}
+            canToggleViewMode={canToggleViewMode}
+            onToggleViewMode={() =>
+              setViewMode(prev => (prev === "all" ? "room" : "all"))
+            }
+            gridMM={state.gridMM}
             dispatch={dispatchFromCanvas}
           />
         </section>
 
-        <section className="panel panel--editor">
-          {showRoomEditor && (
-            <RoomEditor
-              room={activeRoom}
-              roomsCount={state.rooms.length}
-              dispatch={dispatch}
-            />
-          )}
-          {showFurnitureEditor && !showRoomEditor && (
-            <FurnitureEditor
-              furniture={selectedFurniture}
-              dispatch={dispatch}
-            />
-          )}
-          {!showRoomEditor && !showFurnitureEditor && (
-            <div className="panel__section">
-              <h2>編集</h2>
-              <p className="muted">左の一覧から部屋か家具を選択してください</p>
-            </div>
-          )}
-        </section>
+        <section className="panel panel--editor">{editorContentDesktop}</section>
+      </div>
+
+      <div className="mobile-drawer" aria-label="モバイルメニュー">
+        <div className="mobile-drawer__tabs">
+          <button
+            type="button"
+            className={`mobile-drawer__tab${
+              mobileTab === "list" ? " is-active" : ""
+            }`}
+            onClick={() => setMobileTab("list")}
+          >
+            一覧
+          </button>
+          <button
+            type="button"
+            className={`mobile-drawer__tab${
+              mobileTab === "editor" ? " is-active" : ""
+            }`}
+            onClick={() => setMobileTab("editor")}
+          >
+            編集
+          </button>
+        </div>
+        <div className="mobile-drawer__content">
+          {mobileTab === "list" ? listContent : editorContentMobile}
+        </div>
       </div>
     </div>
   );

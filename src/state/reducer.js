@@ -1,5 +1,6 @@
 const DEFAULT_ROOM = { width: 3600, height: 2600, x: 0, y: 0 };
 const DEFAULT_COLOR = "#8ecae6";
+const DEFAULT_GRID_MM = 100;
 
 const createId = () => {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -42,7 +43,8 @@ export const initialState = {
   rooms: [DEFAULT_ROOM_INSTANCE],
   activeRoomId: DEFAULT_ROOM_INSTANCE.id,
   furnitures: [],
-  selectedId: null
+  selectedId: null,
+  gridMM: DEFAULT_GRID_MM
 };
 
 const normalizeRoom = room => {
@@ -99,7 +101,11 @@ const normalizeLayout = data => {
     roomId: roomIds.has(f.roomId) ? f.roomId : fallbackRoomId
   }));
 
-  return { rooms, furnitures: normalizedFurnitures };
+  return {
+    rooms,
+    furnitures: normalizedFurnitures,
+    gridMM: toNumber(data?.gridMM) || DEFAULT_GRID_MM
+  };
 };
 
 const getDisplaySize = furniture =>
@@ -437,7 +443,14 @@ export function reducer(state, action) {
         rooms: normalized.rooms,
         activeRoomId: normalized.rooms[0]?.id ?? null,
         furnitures: normalized.furnitures,
-        selectedId: null
+        selectedId: null,
+        gridMM: normalized.gridMM
+      };
+    }
+    case "SET_GRID_MM": {
+      return {
+        ...state,
+        gridMM: action.payload
       };
     }
     default:
