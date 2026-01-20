@@ -1,0 +1,305 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Room Planner</title>
+  <style>
+    body {
+      user-select: none;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h2>部屋サイズ</h2>
+  横(mm): <input id="roomW" type="number" value="3600">
+  縦(mm): <input id="roomH" type="number" value="2600">
+
+  <h2>家具追加</h2>
+  名前: <input id="fName" value="デスク"><br>
+  横(mm): <input id="fW" type="number" value="1200"><br>
+  縦(mm): <input id="fH" type="number" value="600"><br>
+  色: <input id="fColor" type="color" value="#8ecae6"><br>
+  <button id="addBtn">家具を追加</button>
+
+  <h2>選択中の家具を編集</h2>
+  <div id="editor"></div>
+
+  <h2>保存 / 読み込み</h2>
+  <button id="exportBtn">Export JSON</button>
+  <input type="file" accept=".json" id="importInput">
+
+  <hr>
+  <svg id="canvas"></svg>
+
+  <script>
+    /* =====================
+       config
+    ===================== */
+    const CONFIG = {
+      maxW: 600,
+      maxH: 400,
+      margin: 50,
+      gridMM: 100
+    };
+
+    /* =====================
+       state
+    ===================== */
+    const state = {
+      room: { w: 3600, h: 2600 },
+      furnitures: [],
+      selectedId: null,
+      dragging: {
+        active: false,
+        offsetX: 0,
+        offsetY: 0
+      }
+    };
+
+    /* =====================
+       utils
+    ===================== */
+    function getScale() {
+      return Math.min(
+        CONFIG.maxW / state.room.w,
+        CONFIG.maxH / state.room.h
+      );
+    }
+
+    /* =====================
+       logic
+    ===================== */
+    const LayoutLogic = {
+      toggleRotation(f) {
+        f.rotation = (f.rotation === 90) ? 0 : 90;
+      },
+      displaySize(f) {
+        return (f.rotation === 90)
+          ? { w: f.height, h: f.width }
+          : { w: f.width, h: f.height };
+      }
+    };
+
+    /* =====================
+       renderer
+    ===================== */
+    const Renderer = {
+      draw() {
+        const svg = canvas;
+        const scale = getScale();
+        const w = state.room.w * scale;
+        const h = state.room.h * scale;
+
+        svg.setAttribute("width", w + CONFIG.margin * 2);
+        svg.setAttribute("height", h + CONFIG.margin * 2);
+
+        svg.innerHTML = `
+      ${this.renderGrid(scale, w, h)}
+
+      <rect x="${CONFIG.margin}" y="${CONFIG.margin}"
+        width="${w}" height="${h}"
+        fill="none" stroke="#333" stroke-width="2"/>
+
+      <text x="${CONFIG.margin + w / 2}" y="${CONFIG.margin - 10}"
+        text-anchor="middle">${state.room.w} mm</text>
+
+      <text x="${CONFIG.margin - 20}" y="${CONFIG.margin + h / 2}"
+        transform="rotate(-90 ${CONFIG.margin - 20} ${CONFIG.margin + h / 2})"
+        text-anchor="middle">${state.room.h} mm</text>
+
+      <text x="${CONFIG.margin}" y="${CONFIG.margin + h + 25}"
+        font-size="12">Grid: ${CONFIG.gridMM} mm</text>
+
+      ${state.furnitures.map(f => this.renderFurniture(f, scale)).join("")}
+    `;
+
+        svg.querySelectorAll("g[data-id]").forEach(g =>
+          g.addEventListener("mousedown", Controller.startDrag)
+        );
+      },
+
+      renderGrid(scale, w, h) {
+        let out = "";
+        for (let x = 0; x <= state.room.w; x += CONFIG.gridMM) {
+          const px = CONFIG.margin + x * scale;
+          out += `<line x1="${px}" y1="${CONFIG.margin}" x2="${px}" y2="${CONFIG.margin + h}" stroke="#ddd"/>`;
+        }
+        for (let y = 0; y <= state.room.h; y += CONFIG.gridMM) {
+          const py = CONFIG.margin + y * scale;
+          out += `<line x1="${CONFIG.margin}" y1="${py}" x2="${CONFIG.margin + w}" y2="${py}" stroke="#ddd"/>`;
+        }
+        return out;
+      },
+
+      renderFurniture(f, scale) {
+        const { w, h } = LayoutLogic.displaySize(f);
+        const x = CONFIG.margin + f.x * scale;
+        const y = CONFIG.margin + f.y * scale;
+
+        return `
+      <g data-id="${f.id}">
+        <rect x="${x}" y="${y}"
+          width="${w * scale}" height="${h * scale}"
+          fill="${f.color}"
+          stroke="${f.id === state.selectedId ? "red" : "#333"}"
+          stroke-width="2"/>
+        <text x="${x + w * scale / 2}" y="${y + h * scale / 2 - 6}"
+          text-anchor="middle" font-size="12">${f.name}</text>
+        <text x="${x + w * scale / 2}" y="${y + h * scale / 2 + 10}"
+          text-anchor="middle" font-size="10">${f.width} × ${f.height} mm</text>
+      </g>
+    `;
+      }
+    };
+
+    /* =====================
+       controller
+    ===================== */
+    const Controller = {
+      addFurniture() {
+        state.room.w = +roomW.value;
+        state.room.h = +roomH.value;
+
+        const f = {
+          id: crypto.randomUUID(),
+          name: fName.value,
+          width: +fW.value,
+          height: +fH.value,
+          x: 100,
+          y: 100,
+          color: fColor.value,
+          rotation: 0
+        };
+
+        state.furnitures.push(f);
+        state.selectedId = f.id;
+        Renderer.draw();
+        Editor.update();
+      },
+
+      startDrag(e) {
+        const id = e.currentTarget.dataset.id;
+        const f = state.furnitures.find(x => x.id === id);
+        if (!f) return;
+
+        state.selectedId = id;
+        Editor.update();
+
+        const rect = canvas.getBoundingClientRect();
+        const scale = getScale();
+
+        state.dragging.active = true;
+        state.dragging.offsetX = e.clientX - rect.left - (CONFIG.margin + f.x * scale);
+        state.dragging.offsetY = e.clientY - rect.top - (CONFIG.margin + f.y * scale);
+
+        document.addEventListener("mousemove", Controller.onDrag);
+        document.addEventListener("mouseup", Controller.endDrag);
+      },
+
+      onDrag(e) {
+        if (!state.dragging.active) return;
+        const f = state.furnitures.find(x => x.id === state.selectedId);
+        if (!f) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const scale = getScale();
+
+        f.x = (e.clientX - rect.left - CONFIG.margin - state.dragging.offsetX) / scale;
+        f.y = (e.clientY - rect.top - CONFIG.margin - state.dragging.offsetY) / scale;
+
+        Renderer.draw();
+      },
+
+      endDrag() {
+        state.dragging.active = false;
+        document.removeEventListener("mousemove", Controller.onDrag);
+        document.removeEventListener("mouseup", Controller.endDrag);
+      }
+    };
+
+    /* =====================
+       editor
+    ===================== */
+    const Editor = {
+      update() {
+        const el = editor;
+        const f = state.furnitures.find(x => x.id === state.selectedId);
+        if (!f) {
+          el.innerHTML = "<p>家具を選択してください</p>";
+          return;
+        }
+
+        el.innerHTML = `
+      名前: <input id="eName" value="${f.name}"><br>
+      横(mm): <input id="eW" type="number" value="${f.width}"><br>
+      縦(mm): <input id="eH" type="number" value="${f.height}"><br>
+      <button id="rotateBtn">90°回転</button>
+    `;
+
+        rotateBtn.onclick = () => {
+          LayoutLogic.toggleRotation(f);
+          Renderer.draw();
+          this.update();
+        };
+      }
+    };
+
+    /* =====================
+       import / export
+    ===================== */
+    exportBtn.onclick = () => {
+      const blob = new Blob([JSON.stringify({
+        room: state.room,
+        furnitures: state.furnitures
+      }, null, 2)], { type: "application/json" });
+
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "room-layout.json";
+      a.click();
+    };
+
+    importInput.onchange = e => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        const data = JSON.parse(reader.result);
+
+        state.room.w = +data.room.width;
+        state.room.h = +data.room.height;
+        roomW.value = state.room.w;
+        roomH.value = state.room.h;
+
+        state.furnitures = (data.furnitures ?? []).map(f => ({
+          id: f.id ?? crypto.randomUUID(),
+          name: f.name ?? "家具",
+          width: +f.width,
+          height: +f.height,
+          x: +f.x,
+          y: +f.y,
+          color: f.color ?? "#8ecae6",
+          rotation: (f.rotation === 90) ? 90 : 0
+        }));
+
+        state.selectedId = null;
+        Renderer.draw();
+        Editor.update();
+      };
+      reader.readAsText(file);
+    };
+
+    /* =====================
+       init
+    ===================== */
+    addBtn.onclick = Controller.addFurniture;
+    Renderer.draw();
+    Editor.update();
+  </script>
+</body>
+
+</html>
