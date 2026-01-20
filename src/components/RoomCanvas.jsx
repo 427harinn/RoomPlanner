@@ -255,8 +255,9 @@ export default function RoomCanvas({
     setIsDraggingRoom(false);
     const { onMouseMove: moveHandler, onMouseUp: upHandler } =
       handlerRef.current;
-    if (moveHandler) window.removeEventListener("mousemove", moveHandler);
-    if (upHandler) window.removeEventListener("mouseup", upHandler);
+    if (moveHandler) window.removeEventListener("pointermove", moveHandler);
+    if (upHandler) window.removeEventListener("pointerup", upHandler);
+    if (upHandler) window.removeEventListener("pointercancel", upHandler);
   }, []);
 
   const onMouseUp = useCallback(() => {
@@ -266,6 +267,7 @@ export default function RoomCanvas({
 
   const startDrag = (event, id) => {
     event.stopPropagation();
+    event.preventDefault();
     const target = furnitures.find(item => item.id === id);
     if (!target || !svgRef.current) return;
     const room = rooms.find(item => item.id === target.roomId);
@@ -297,12 +299,14 @@ export default function RoomCanvas({
         (offsetY + (baseY - origin.y) * scale)
     };
 
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
+    window.addEventListener("pointermove", onMouseMove);
+    window.addEventListener("pointerup", onMouseUp);
+    window.addEventListener("pointercancel", onMouseUp);
   };
 
   const startRoomDrag = (event, room) => {
     event.stopPropagation();
+    event.preventDefault();
     if (viewMode === "room") return;
     if (!svgRef.current) return;
     if (room.id !== activeRoomId) {
@@ -324,8 +328,9 @@ export default function RoomCanvas({
     };
     setIsDraggingRoom(true);
 
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
+    window.addEventListener("pointermove", onMouseMove);
+    window.addEventListener("pointerup", onMouseUp);
+    window.addEventListener("pointercancel", onMouseUp);
   };
 
   useEffect(() => {
@@ -435,7 +440,7 @@ export default function RoomCanvas({
                 width={roomW}
                 height={roomH}
                 fill="transparent"
-                onMouseDown={event => startRoomDrag(event, room)}
+                onPointerDown={event => startRoomDrag(event, room)}
               />
               <path
                 d={getRoundedRectPath(
@@ -514,7 +519,7 @@ export default function RoomCanvas({
           return (
             <g
               key={item.id}
-              onMouseDown={event => startDrag(event, item.id)}
+              onPointerDown={event => startDrag(event, item.id)}
             >
               <path
                 d={getRoundedRectPath(
