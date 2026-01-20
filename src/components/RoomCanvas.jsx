@@ -108,6 +108,41 @@ export default function RoomCanvas({
     [rooms, scale]
   );
 
+  const getRoundedRectPath = (x, y, w, h, radius) => {
+    const clamp = value => Math.max(0, Math.min(value, w / 2, h / 2));
+    const tl = clamp(radius?.tl ?? 0);
+    const tr = clamp(radius?.tr ?? 0);
+    const br = clamp(radius?.br ?? 0);
+    const bl = clamp(radius?.bl ?? 0);
+
+    return [
+      `M ${x + tl} ${y}`,
+      `L ${x + w - tr} ${y}`,
+      tr > 0 ? `A ${tr} ${tr} 0 0 1 ${x + w} ${y + tr}` : `L ${x + w} ${y}`,
+      `L ${x + w} ${y + h - br}`,
+      br > 0
+        ? `A ${br} ${br} 0 0 1 ${x + w - br} ${y + h}`
+        : `L ${x + w} ${y + h}`,
+      `L ${x + bl} ${y + h}`,
+      bl > 0 ? `A ${bl} ${bl} 0 0 1 ${x} ${y + h - bl}` : `L ${x} ${y + h}`,
+      `L ${x} ${y + tl}`,
+      tl > 0 ? `A ${tl} ${tl} 0 0 1 ${x + tl} ${y}` : `L ${x} ${y}`,
+      "Z"
+    ].join(" ");
+  };
+
+  const degreesToRadius = (deg, w, h) => {
+    const clamped = Math.max(0, Math.min(90, Number(deg) || 0));
+    return (clamped / 90) * (Math.min(w, h) / 2);
+  };
+
+  const toCornerRadius = (radius, w, h) => ({
+    tl: degreesToRadius(radius?.tl, w, h),
+    tr: degreesToRadius(radius?.tr, w, h),
+    br: degreesToRadius(radius?.br, w, h),
+    bl: degreesToRadius(radius?.bl, w, h)
+  });
+
   const onMouseMove = useCallback(
     event => {
       if (!dragRef.current.active || !svgRef.current) return;
@@ -136,16 +171,28 @@ export default function RoomCanvas({
       const target = furnitures.find(item => item.id === id);
       if (!target) return;
       const room = rooms.find(item => item.id === target.roomId);
-      if (!room) return;
 
-      const x =
-        (event.clientX - rect.left - offsetX - dragOffsetX) / scale -
-        room.x;
-      const y =
-        (event.clientY - rect.top - offsetY - dragOffsetY) / scale -
-        room.y;
-
-      dispatch({ type: "MOVE_FURNITURE", payload: { id, x, y } });
+      if (room) {
+        const x =
+          (event.clientX - rect.left - offsetX - dragOffsetX) / scale -
+          room.x;
+        const y =
+          (event.clientY - rect.top - offsetY - dragOffsetY) / scale -
+          room.y;
+        dispatch({
+          type: "MOVE_FURNITURE",
+          payload: { id, x, y, absX: room.x + x, absY: room.y + y }
+        });
+      } else {
+        const x =
+          (event.clientX - rect.left - offsetX - dragOffsetX) / scale;
+        const y =
+          (event.clientY - rect.top - offsetY - dragOffsetY) / scale;
+        dispatch({
+          type: "MOVE_FURNITURE",
+          payload: { id, x, y, absX: x, absY: y }
+        });
+      }
     },
     [dispatch, furnitures, rooms, scale, offsetX, offsetY]
   );
@@ -176,16 +223,20 @@ export default function RoomCanvas({
     const target = furnitures.find(item => item.id === id);
     if (!target || !svgRef.current) return;
     const room = rooms.find(item => item.id === target.roomId);
-    if (!room) return;
-
-    dispatch({ type: "BEGIN_DRAG" });
-    if (room.id !== activeRoomId) {
-      dispatch({ type: "SET_ACTIVE_ROOM", payload: room.id });
+    if (room) {
+      dispatch({ type: "BEGIN_DRAG" });
+      if (room.id !== activeRoomId) {
+        dispatch({ type: "SET_ACTIVE_ROOM", payload: room.id });
+      }
+    } else {
+      dispatch({ type: "BEGIN_DRAG" });
     }
     dispatch({ type: "SELECT_FURNITURE", payload: id });
     handlerRef.current = { onMouseMove, onMouseUp };
 
     const rect = svgRef.current.getBoundingClientRect();
+    const baseX = room ? room.x + target.x : target.x;
+    const baseY = room ? room.y + target.y : target.y;
     dragRef.current = {
       active: true,
       kind: "furniture",
@@ -193,11 +244,11 @@ export default function RoomCanvas({
       offsetX:
         event.clientX -
         rect.left -
-        (offsetX + (room.x + target.x) * scale),
+        (offsetX + baseX * scale),
       offsetY:
         event.clientY -
         rect.top -
-        (offsetY + (room.y + target.y) * scale)
+        (offsetY + baseY * scale)
     };
 
     window.addEventListener("mousemove", onMouseMove);
@@ -322,11 +373,14 @@ export default function RoomCanvas({
                 fill="transparent"
                 onMouseDown={event => startRoomDrag(event, room)}
               />
-              <rect
-                x={roomX}
-                y={roomY}
-                width={roomW}
-                height={roomH}
+              <path
+                d={getRoundedRectPath(
+                  roomX,
+                  roomY,
+                  roomW,
+                  roomH,
+                  toCornerRadius(room.radius, roomW, roomH)
+                )}
                 fill="none"
                 stroke={isActive ? "#ef4444" : "#333"}
                 strokeWidth={isActive ? "3" : "2"}
@@ -363,20 +417,24 @@ export default function RoomCanvas({
         {furnitures.map(item => {
           const { w, h } = getDisplaySize(item);
           const room = rooms.find(entry => entry.id === item.roomId);
-          if (!room) return null;
-          const x = offsetX + (room.x + item.x) * scale;
-          const y = offsetY + (room.y + item.y) * scale;
+          const baseX = room ? room.x + item.x : item.x;
+          const baseY = room ? room.y + item.y : item.y;
+          const x = offsetX + baseX * scale;
+          const y = offsetY + baseY * scale;
 
           return (
             <g
               key={item.id}
               onMouseDown={event => startDrag(event, item.id)}
             >
-              <rect
-                x={x}
-                y={y}
-                width={w * scale}
-                height={h * scale}
+              <path
+                d={getRoundedRectPath(
+                  x,
+                  y,
+                  w * scale,
+                  h * scale,
+                  toCornerRadius(item.radius, w * scale, h * scale)
+                )}
                 fill={item.color}
                 stroke={item.id === selectedId ? "red" : "#333"}
                 strokeWidth="2"

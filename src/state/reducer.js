@@ -13,13 +13,21 @@ const toNumber = value => {
   return Number.isFinite(num) ? num : 0;
 };
 
-const createRoom = ({ name, width, height, x, y } = {}) => ({
+const normalizeRadius = radius => ({
+  tl: toNumber(radius?.tl),
+  tr: toNumber(radius?.tr),
+  br: toNumber(radius?.br),
+  bl: toNumber(radius?.bl)
+});
+
+const createRoom = ({ name, width, height, x, y, radius } = {}) => ({
   id: createId(),
   name: name ?? "部屋",
   width: toNumber(width) || DEFAULT_ROOM.width,
   height: toNumber(height) || DEFAULT_ROOM.height,
   x: toNumber(x),
-  y: toNumber(y)
+  y: toNumber(y),
+  radius: radius ?? { tl: 0, tr: 0, br: 0, bl: 0 }
 });
 
 const DEFAULT_ROOM_INSTANCE = createRoom({
@@ -47,7 +55,13 @@ const normalizeRoom = room => {
     width: width > 0 ? width : DEFAULT_ROOM.width,
     height: height > 0 ? height : DEFAULT_ROOM.height,
     x: toNumber(room?.x),
-    y: toNumber(room?.y)
+    y: toNumber(room?.y),
+    radius: {
+      tl: toNumber(room?.radius?.tl ?? room?.radiusTL ?? 0),
+      tr: toNumber(room?.radius?.tr ?? room?.radiusTR ?? 0),
+      br: toNumber(room?.radius?.br ?? room?.radiusBR ?? 0),
+      bl: toNumber(room?.radius?.bl ?? room?.radiusBL ?? 0)
+    }
   };
 };
 
@@ -60,7 +74,13 @@ const normalizeFurniture = (f, fallbackRoomId) => ({
   x: toNumber(f.x),
   y: toNumber(f.y),
   color: f.color ?? DEFAULT_COLOR,
-  rotation: f.rotation === 90 ? 90 : 0
+  rotation: [0, 90, 180, 270].includes(f.rotation) ? f.rotation : 0,
+  radius: {
+    tl: toNumber(f?.radius?.tl ?? f?.radiusTL ?? 0),
+    tr: toNumber(f?.radius?.tr ?? f?.radiusTR ?? 0),
+    br: toNumber(f?.radius?.br ?? f?.radiusBR ?? 0),
+    bl: toNumber(f?.radius?.bl ?? f?.radiusBL ?? 0)
+  }
 });
 
 const normalizeLayout = data => {
@@ -82,6 +102,24 @@ const normalizeLayout = data => {
   return { rooms, furnitures: normalizedFurnitures };
 };
 
+const getDisplaySize = furniture =>
+  furniture.rotation === 90
+    ? { w: toNumber(furniture.height), h: toNumber(furniture.width) }
+    : { w: toNumber(furniture.width), h: toNumber(furniture.height) };
+
+const cloneFurniture = (source, roomId) => ({
+  id: createId(),
+  roomId,
+  name: source.name && source.name.trim() ? source.name : "家具",
+  width: toNumber(source.width),
+  height: toNumber(source.height),
+  x: toNumber(source.x) + 100,
+  y: toNumber(source.y) + 100,
+  color: source.color ?? DEFAULT_COLOR,
+  rotation: source.rotation === 90 ? 90 : 0,
+  radius: normalizeRadius(source.radius)
+});
+
 export const createFurniture = ({ name, width, height, color, roomId }) => ({
   id: createId(),
   roomId,
@@ -91,7 +129,8 @@ export const createFurniture = ({ name, width, height, color, roomId }) => ({
   x: 100,
   y: 100,
   color: color || DEFAULT_COLOR,
-  rotation: 0
+  rotation: 0,
+  radius: { tl: 0, tr: 0, br: 0, bl: 0 }
 });
 
 export function reducer(state, action) {
@@ -151,6 +190,27 @@ export function reducer(state, action) {
         selectedId: null
       };
     }
+    case "PASTE_ROOM": {
+      const payload = action.payload;
+      if (!payload?.room) return state;
+      const room = createRoom({
+        name: `${payload.room.name ?? "部屋"} コピー`,
+        width: payload.room.width,
+        height: payload.room.height,
+        x: toNumber(payload.room.x) + 200,
+        y: toNumber(payload.room.y) + 200
+      });
+      const furnitures = Array.isArray(payload.furnitures)
+        ? payload.furnitures.map(item => cloneFurniture(item, room.id))
+        : [];
+      return {
+        ...state,
+        rooms: [...state.rooms, room],
+        furnitures: [...state.furnitures, ...furnitures],
+        activeRoomId: room.id,
+        selectedId: null
+      };
+    }
     case "UPDATE_ROOM": {
       const { id, updates } = action.payload;
       return {
@@ -175,7 +235,11 @@ export function reducer(state, action) {
                 y:
                   updates.y !== undefined
                     ? Math.max(0, toNumber(updates.y))
-                    : room.y
+                    : room.y,
+                radius:
+                  updates.radius !== undefined
+                    ? normalizeRadius(updates.radius)
+                    : room.radius
               }
             : room
         )
@@ -216,11 +280,58 @@ export function reducer(state, action) {
         selectedId: null
       };
     }
+    case "DELETE_FURNITURE": {
+      const id = action.payload;
+      const furnitures = state.furnitures.filter(item => item.id !== id);
+      if (furnitures.length === state.furnitures.length) return state;
+      return {
+        ...state,
+        furnitures,
+        selectedId: null
+      };
+    }
     case "ADD_FURNITURE": {
       const furniture = createFurniture({
         ...action.payload,
         roomId: state.activeRoomId
       });
+      return {
+        ...state,
+        furnitures: [...state.furnitures, furniture],
+        selectedId: furniture.id,
+        activeRoomId: null
+      };
+    }
+    case "DUPLICATE_FURNITURE": {
+      const source = state.furnitures.find(item => item.id === action.payload);
+      if (!source) return state;
+
+      const furniture = {
+        ...source,
+        id: createId(),
+        name: `${source.name} コピー`,
+        x: source.x + 100,
+        y: source.y + 100
+      };
+
+      return {
+        ...state,
+        furnitures: [...state.furnitures, furniture],
+        selectedId: furniture.id,
+        activeRoomId: null
+      };
+    }
+    case "PASTE_FURNITURE": {
+      const payload = action.payload;
+      if (!payload?.furniture) return state;
+      const roomIds = new Set(state.rooms.map(room => room.id));
+      const preferredRoomId = payload.targetRoomId;
+      const roomId = roomIds.has(preferredRoomId)
+        ? preferredRoomId
+        : roomIds.has(payload.furniture.roomId)
+        ? payload.furniture.roomId
+        : null;
+      const furniture = cloneFurniture(payload.furniture, roomId);
       return {
         ...state,
         furnitures: [...state.furnitures, furniture],
@@ -245,22 +356,54 @@ export function reducer(state, action) {
                 ...f,
                 ...updates,
                 width: updates.width !== undefined ? toNumber(updates.width) : f.width,
-                height: updates.height !== undefined ? toNumber(updates.height) : f.height
+                height: updates.height !== undefined ? toNumber(updates.height) : f.height,
+                radius:
+                  updates.radius !== undefined
+                    ? normalizeRadius(updates.radius)
+                    : f.radius
               }
             : f
         )
       };
     }
     case "MOVE_FURNITURE": {
-      const { id, x, y } = action.payload;
+      const { id, x, y, absX, absY } = action.payload;
+      const target = state.furnitures.find(item => item.id === id);
+      if (!target) return state;
+      const { w, h } = getDisplaySize(target);
+      const currentRoom = state.rooms.find(room => room.id === target.roomId);
+      const absoluteX =
+        absX !== undefined
+          ? toNumber(absX)
+          : currentRoom
+          ? currentRoom.x + toNumber(x)
+          : toNumber(x);
+      const absoluteY =
+        absY !== undefined
+          ? toNumber(absY)
+          : currentRoom
+          ? currentRoom.y + toNumber(y)
+          : toNumber(y);
+      const nextRoom = state.rooms.find(
+        room =>
+          absoluteX >= room.x &&
+          absoluteY >= room.y &&
+          absoluteX + w <= room.x + room.width &&
+          absoluteY + h <= room.y + room.height
+      );
+
+      const nextRoomId = nextRoom ? nextRoom.id : null;
+      const nextX = nextRoom ? absoluteX - nextRoom.x : absoluteX;
+      const nextY = nextRoom ? absoluteY - nextRoom.y : absoluteY;
       return {
         ...state,
         furnitures: state.furnitures.map(f =>
           f.id === id
             ? {
                 ...f,
-                x: toNumber(x),
-                y: toNumber(y)
+                roomId: nextRoomId,
+                x: toNumber(nextX),
+                y: toNumber(nextY)
               }
             : f
         )
@@ -272,7 +415,18 @@ export function reducer(state, action) {
         ...state,
         furnitures: state.furnitures.map(f =>
           f.id === id
-            ? { ...f, rotation: f.rotation === 90 ? 0 : 90 }
+            ? {
+                ...f,
+                rotation: (f.rotation + 90) % 360,
+                width: f.height,
+                height: f.width,
+                radius: {
+                  tl: f.radius?.bl ?? 0,
+                  tr: f.radius?.tl ?? 0,
+                  br: f.radius?.tr ?? 0,
+                  bl: f.radius?.br ?? 0
+                }
+              }
             : f
         )
       };

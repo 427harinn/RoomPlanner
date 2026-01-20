@@ -71,6 +71,102 @@ export default function FurnitureEditor({ furniture, dispatch }) {
               }
             />
           </label>
+          <label>
+            角丸 左上(°)
+            <div className="range-field">
+              <input
+                type="range"
+                min="0"
+                max="90"
+                step="1"
+                value={furniture.radius?.tl ?? 0}
+                onChange={e =>
+                  dispatch({
+                    type: "UPDATE_FURNITURE",
+                    payload: {
+                      id: furniture.id,
+                      updates: {
+                        radius: { ...furniture.radius, tl: e.target.value }
+                      }
+                    }
+                  })
+                }
+              />
+              <span>{furniture.radius?.tl ?? 0}°</span>
+            </div>
+          </label>
+          <label>
+            角丸 右上(°)
+            <div className="range-field">
+              <input
+                type="range"
+                min="0"
+                max="90"
+                step="1"
+                value={furniture.radius?.tr ?? 0}
+                onChange={e =>
+                  dispatch({
+                    type: "UPDATE_FURNITURE",
+                    payload: {
+                      id: furniture.id,
+                      updates: {
+                        radius: { ...furniture.radius, tr: e.target.value }
+                      }
+                    }
+                  })
+                }
+              />
+              <span>{furniture.radius?.tr ?? 0}°</span>
+            </div>
+          </label>
+          <label>
+            角丸 右下(°)
+            <div className="range-field">
+              <input
+                type="range"
+                min="0"
+                max="90"
+                step="1"
+                value={furniture.radius?.br ?? 0}
+                onChange={e =>
+                  dispatch({
+                    type: "UPDATE_FURNITURE",
+                    payload: {
+                      id: furniture.id,
+                      updates: {
+                        radius: { ...furniture.radius, br: e.target.value }
+                      }
+                    }
+                  })
+                }
+              />
+              <span>{furniture.radius?.br ?? 0}°</span>
+            </div>
+          </label>
+          <label>
+            角丸 左下(°)
+            <div className="range-field">
+              <input
+                type="range"
+                min="0"
+                max="90"
+                step="1"
+                value={furniture.radius?.bl ?? 0}
+                onChange={e =>
+                  dispatch({
+                    type: "UPDATE_FURNITURE",
+                    payload: {
+                      id: furniture.id,
+                      updates: {
+                        radius: { ...furniture.radius, bl: e.target.value }
+                      }
+                    }
+                  })
+                }
+              />
+              <span>{furniture.radius?.bl ?? 0}°</span>
+            </div>
+          </label>
         </div>
       )}
       <div className="editor-actions">
@@ -83,7 +179,18 @@ export default function FurnitureEditor({ furniture, dispatch }) {
             dispatch({ type: "TOGGLE_ROTATION", payload: furniture.id })
           }
         >
-          90°回転
+          回転
+        </button>
+        <button
+          className="btn btn--ghost"
+          type="button"
+          disabled={!furniture}
+          onClick={() =>
+            furniture &&
+            dispatch({ type: "DELETE_FURNITURE", payload: furniture.id })
+          }
+        >
+          家具を削除
         </button>
       </div>
     </div>

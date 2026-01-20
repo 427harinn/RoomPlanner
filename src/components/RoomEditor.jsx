@@ -90,6 +90,102 @@ export default function RoomEditor({ room, roomsCount, dispatch }) {
             }
           />
         </label>
+        <label>
+          角丸 左上(°)
+          <div className="range-field">
+            <input
+              type="range"
+              min="0"
+              max="90"
+              step="1"
+              value={room.radius?.tl ?? 0}
+              onChange={e =>
+                dispatch({
+                  type: "UPDATE_ROOM",
+                  payload: {
+                    id: room.id,
+                    updates: {
+                      radius: { ...room.radius, tl: e.target.value }
+                    }
+                  }
+                })
+              }
+            />
+            <span>{room.radius?.tl ?? 0}°</span>
+          </div>
+        </label>
+        <label>
+          角丸 右上(°)
+          <div className="range-field">
+            <input
+              type="range"
+              min="0"
+              max="90"
+              step="1"
+              value={room.radius?.tr ?? 0}
+              onChange={e =>
+                dispatch({
+                  type: "UPDATE_ROOM",
+                  payload: {
+                    id: room.id,
+                    updates: {
+                      radius: { ...room.radius, tr: e.target.value }
+                    }
+                  }
+                })
+              }
+            />
+            <span>{room.radius?.tr ?? 0}°</span>
+          </div>
+        </label>
+        <label>
+          角丸 右下(°)
+          <div className="range-field">
+            <input
+              type="range"
+              min="0"
+              max="90"
+              step="1"
+              value={room.radius?.br ?? 0}
+              onChange={e =>
+                dispatch({
+                  type: "UPDATE_ROOM",
+                  payload: {
+                    id: room.id,
+                    updates: {
+                      radius: { ...room.radius, br: e.target.value }
+                    }
+                  }
+                })
+              }
+            />
+            <span>{room.radius?.br ?? 0}°</span>
+          </div>
+        </label>
+        <label>
+          角丸 左下(°)
+          <div className="range-field">
+            <input
+              type="range"
+              min="0"
+              max="90"
+              step="1"
+              value={room.radius?.bl ?? 0}
+              onChange={e =>
+                dispatch({
+                  type: "UPDATE_ROOM",
+                  payload: {
+                    id: room.id,
+                    updates: {
+                      radius: { ...room.radius, bl: e.target.value }
+                    }
+                  }
+                })
+              }
+            />
+            <span>{room.radius?.bl ?? 0}°</span>
+          </div>
+        </label>
       </div>
       <div className="editor-actions">
         <button
