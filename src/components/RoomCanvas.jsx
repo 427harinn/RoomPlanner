@@ -35,7 +35,8 @@ export default function RoomCanvas({
     id: null,
     offsetX: 0,
     offsetY: 0,
-    scale: null
+    scale: null,
+    bounds: null
   });
   const handlerRef = useRef({ onMouseMove: null, onMouseUp: null });
   const handleGridDoubleClick = useCallback(() => {
@@ -71,7 +72,10 @@ export default function RoomCanvas({
     dragRef.current.active && dragRef.current.kind === "room" && dragRef.current.scale
       ? dragRef.current.scale
       : liveScale;
-  const bounds = liveBounds;
+  const bounds =
+    dragRef.current.active && dragRef.current.kind === "room" && dragRef.current.bounds
+      ? dragRef.current.bounds
+      : liveBounds;
   const width = bounds.width * scale;
   const height = bounds.height * scale;
   const offsetX = CONFIG.margin - bounds.minX * scale;
@@ -83,20 +87,28 @@ export default function RoomCanvas({
       const others = rooms.filter(other => other.id !== room.id);
 
       const candidatesX = [];
-      const roomLeft = room.x;
-      const roomRight = room.x + room.width;
+      const roomInsets = getStraightInsets(room);
+      const roomLeft = room.x + roomInsets.left;
+      const roomRight = room.x + room.width - roomInsets.right;
 
       others.forEach(other => {
-        const otherLeft = other.x;
-        const otherRight = other.x + other.width;
-        candidatesX.push({ x: otherLeft, delta: roomLeft - otherLeft });
-        candidatesX.push({ x: otherRight, delta: roomLeft - otherRight });
+        const otherInsets = getStraightInsets(other);
+        const otherLeft = other.x + otherInsets.left;
+        const otherRight = other.x + other.width - otherInsets.right;
         candidatesX.push({
-          x: otherLeft - room.width,
+          x: otherLeft - roomInsets.left,
+          delta: roomLeft - otherLeft
+        });
+        candidatesX.push({
+          x: otherRight - roomInsets.left,
+          delta: roomLeft - otherRight
+        });
+        candidatesX.push({
+          x: otherLeft - (room.width - roomInsets.right),
           delta: roomRight - otherLeft
         });
         candidatesX.push({
-          x: otherRight - room.width,
+          x: otherRight - (room.width - roomInsets.right),
           delta: roomRight - otherRight
         });
       });
@@ -112,20 +124,27 @@ export default function RoomCanvas({
       });
 
       const candidatesY = [];
-      const roomTop = room.y;
-      const roomBottom = room.y + room.height;
+      const roomTop = room.y + roomInsets.top;
+      const roomBottom = room.y + room.height - roomInsets.bottom;
 
       others.forEach(other => {
-        const otherTop = other.y;
-        const otherBottom = other.y + other.height;
-        candidatesY.push({ y: otherTop, delta: roomTop - otherTop });
-        candidatesY.push({ y: otherBottom, delta: roomTop - otherBottom });
+        const otherInsets = getStraightInsets(other);
+        const otherTop = other.y + otherInsets.top;
+        const otherBottom = other.y + other.height - otherInsets.bottom;
         candidatesY.push({
-          y: otherTop - room.height,
+          y: otherTop - roomInsets.top,
+          delta: roomTop - otherTop
+        });
+        candidatesY.push({
+          y: otherBottom - roomInsets.top,
+          delta: roomTop - otherBottom
+        });
+        candidatesY.push({
+          y: otherTop - (room.height - roomInsets.bottom),
           delta: roomBottom - otherTop
         });
         candidatesY.push({
-          y: otherBottom - room.height,
+          y: otherBottom - (room.height - roomInsets.bottom),
           delta: roomBottom - otherBottom
         });
       });
@@ -179,6 +198,16 @@ export default function RoomCanvas({
     br: degreesToRadius(radius?.br, w, h),
     bl: degreesToRadius(radius?.bl, w, h)
   });
+
+  const getStraightInsets = room => {
+    const r = toCornerRadius(room.radius, room.width, room.height);
+    return {
+      left: Math.min(r.tl || 0, r.bl || 0),
+      right: Math.min(r.tr || 0, r.br || 0),
+      top: Math.min(r.tl || 0, r.tr || 0),
+      bottom: Math.min(r.bl || 0, r.br || 0)
+    };
+  };
 
   const isPointInsideRoundedRect = (px, py, rect, radius) => {
     const { x, y, w, h } = rect;
@@ -278,7 +307,8 @@ export default function RoomCanvas({
       id: null,
       offsetX: 0,
       offsetY: 0,
-      scale: null
+      scale: null,
+      bounds: null
     };
     setIsDraggingRoom(false);
     const { onMouseMove: moveHandler, onMouseUp: upHandler } =
@@ -352,7 +382,8 @@ export default function RoomCanvas({
         event.clientX - rect.left - (offsetX + (room.x - origin.x) * scale),
       offsetY:
         event.clientY - rect.top - (offsetY + (room.y - origin.y) * scale),
-      scale: dragScale
+      scale: dragScale,
+      bounds
     };
     setIsDraggingRoom(true);
 
@@ -392,6 +423,8 @@ export default function RoomCanvas({
     const roomY = offsetY + (room.y - origin.y) * scale;
     const roomW = room.width * scale;
     const roomH = room.height * scale;
+    const clipId = `room-grid-clip-${room.id}`;
+    const clipRadius = toCornerRadius(room.radius, roomW, roomH);
 
     for (let x = 0; x <= room.width; x += gridMM) {
       const px = roomX + x * scale;
@@ -423,7 +456,14 @@ export default function RoomCanvas({
       );
     }
 
-    return lines;
+    return [
+      <clipPath key={`${clipId}-def`} id={clipId}>
+        <path d={getRoundedRectPath(roomX, roomY, roomW, roomH, clipRadius)} />
+      </clipPath>,
+      <g key={`${clipId}-lines`} clipPath={`url(#${clipId})`}>
+        {lines}
+      </g>
+    ];
   });
 
   return (
