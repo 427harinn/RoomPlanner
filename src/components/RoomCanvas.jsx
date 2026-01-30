@@ -14,7 +14,7 @@ export default function RoomCanvas({
   gridMM,
   dispatch
 }) {
-  const ROOM_LABEL_MAX = 44;
+  const ROOM_LABEL_MAX = 40;
   const ROOM_DIM_MAX = 40;
   const FURN_LABEL_MAX = 64;
   const FURN_DIM_MAX = 58;
