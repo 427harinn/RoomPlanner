@@ -180,6 +180,34 @@ export default function RoomCanvas({
     bl: degreesToRadius(radius?.bl, w, h)
   });
 
+  const isPointInsideRoundedRect = (px, py, rect, radius) => {
+    const { x, y, w, h } = rect;
+    if (px < x || px > x + w || py < y || py > y + h) return false;
+    const r = toCornerRadius(radius, w, h);
+
+    if (r.tl > 0 && px < x + r.tl && py < y + r.tl) {
+      const dx = px - (x + r.tl);
+      const dy = py - (y + r.tl);
+      if (dx * dx + dy * dy > r.tl * r.tl) return false;
+    }
+    if (r.tr > 0 && px > x + w - r.tr && py < y + r.tr) {
+      const dx = px - (x + w - r.tr);
+      const dy = py - (y + r.tr);
+      if (dx * dx + dy * dy > r.tr * r.tr) return false;
+    }
+    if (r.br > 0 && px > x + w - r.br && py > y + h - r.br) {
+      const dx = px - (x + w - r.br);
+      const dy = py - (y + h - r.br);
+      if (dx * dx + dy * dy > r.br * r.br) return false;
+    }
+    if (r.bl > 0 && px < x + r.bl && py > y + h - r.bl) {
+      const dx = px - (x + r.bl);
+      const dy = py - (y + h - r.bl);
+      if (dx * dx + dy * dy > r.bl * r.bl) return false;
+    }
+    return true;
+  };
+
   const onMouseMove = useCallback(
     event => {
       if (!dragRef.current.active || !svgRef.current) return;
@@ -508,6 +536,21 @@ export default function RoomCanvas({
           const room = rooms.find(entry => entry.id === item.roomId);
           const baseX = room ? room.x + item.x : item.x;
           const baseY = room ? room.y + item.y : item.y;
+          const isOutsideRoom = !room
+            ? true
+            : ![
+                { x: item.x, y: item.y },
+                { x: item.x + w, y: item.y },
+                { x: item.x, y: item.y + h },
+                { x: item.x + w, y: item.y + h }
+              ].every(point =>
+                isPointInsideRoundedRect(
+                  point.x,
+                  point.y,
+                  { x: 0, y: 0, w: room.width, h: room.height },
+                  room.radius
+                )
+              );
           const x = offsetX + (baseX - origin.x) * scale;
           const y = offsetY + (baseY - origin.y) * scale;
           const itemWidth = w * scale;
@@ -529,7 +572,7 @@ export default function RoomCanvas({
                   h * scale,
                   toCornerRadius(item.radius, w * scale, h * scale)
                 )}
-                fill={item.color}
+                fill={isOutsideRoom ? "#f87171" : item.color}
                 stroke={item.id === selectedId ? "red" : "#333"}
                 strokeWidth="2"
               />
