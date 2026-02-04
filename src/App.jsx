@@ -32,6 +32,9 @@ export default function App() {
     ) || null;
   const [openRooms, setOpenRooms] = useState({});
   const [selectionSource, setSelectionSource] = useState("list");
+  const editorPanelRef = useRef(null);
+  const [editorFocus, setEditorFocus] = useState(false);
+  const editorFocusRef = useRef(false);
   const [editing, setEditing] = useState({
     type: null,
     id: null,
@@ -149,7 +152,18 @@ export default function App() {
     clipboardRef,
     onDispatch: dispatch,
     onSetSelectionSource: setSelectionSource,
+    isBlocked: editorFocus,
   });
+
+  useEffect(() => {
+    if (!editorFocusRef.current) return;
+    const active = document.activeElement;
+    if (editorPanelRef.current && active && editorPanelRef.current.contains(active)) {
+      active.blur();
+    }
+    editorFocusRef.current = false;
+    setEditorFocus(false);
+  }, [state.activeRoomId, state.selectedId, state.selectedFixtureId]);
 
   const dispatchFromCanvas = (action) => {
     if (
@@ -246,7 +260,22 @@ export default function App() {
           />
         </section>
 
-        <section className="panel panel--editor">
+        <section
+          className="panel panel--editor"
+          ref={editorPanelRef}
+          onFocusCapture={() => {
+            editorFocusRef.current = true;
+            setEditorFocus(true);
+          }}
+          onBlurCapture={(event) => {
+            const next = event.relatedTarget;
+            if (editorPanelRef.current && next && editorPanelRef.current.contains(next)) {
+              return;
+            }
+            editorFocusRef.current = false;
+            setEditorFocus(false);
+          }}
+        >
           {editorContentDesktop}
         </section>
       </div>

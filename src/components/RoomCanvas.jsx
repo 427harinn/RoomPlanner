@@ -1442,13 +1442,13 @@ export default function RoomCanvas({
           }
 
           const resizeHandles =
-            selectedRect && selectedTarget
+            selectedRect && selectedTarget && selectedTarget !== "room"
               ? getRotatedHandleRects(
                   offsetX + (selectedRect.x - origin.x) * scale,
                   offsetY + (selectedRect.y - origin.y) * scale,
                   selectedRect.w * scale,
                   selectedRect.h * scale,
-                  selectedTarget === "room" ? 0 : selectedMeta.rotation ?? 0,
+                  selectedMeta.rotation ?? 0,
                 )
               : [];
 
@@ -1519,23 +1519,28 @@ export default function RoomCanvas({
             const baseY = room ? room.y + item.y : item.y;
             const centerX = baseX + item.width / 2;
             const centerY = baseY + item.height / 2;
-            const aabbX = centerX - w / 2;
-            const aabbY = centerY - h / 2;
+            const rotation = Number(item.rotation) || 0;
             const isOutsideRoom = !room
               ? true
               : ![
-                  { x: aabbX - (room ? room.x : 0), y: aabbY - (room ? room.y : 0) },
-                  { x: aabbX - (room ? room.x : 0) + w, y: aabbY - (room ? room.y : 0) },
-                  { x: aabbX - (room ? room.x : 0), y: aabbY - (room ? room.y : 0) + h },
-                  { x: aabbX - (room ? room.x : 0) + w, y: aabbY - (room ? room.y : 0) + h },
-                ].every((point) =>
-                  isPointInsideRoundedRect(
-                    point.x,
-                    point.y,
-                    { x: 0, y: 0, w: room.width, h: room.height },
-                    room.radius,
-                  ),
-                );
+                  { x: baseX, y: baseY },
+                  { x: baseX + item.width, y: baseY },
+                  { x: baseX, y: baseY + item.height },
+                  { x: baseX + item.width, y: baseY + item.height },
+                ]
+                  .map((point) => rotatePoint(point, { x: centerX, y: centerY }, rotation))
+                  .map((point) => ({
+                    x: point.x - room.x,
+                    y: point.y - room.y,
+                  }))
+                  .every((point) =>
+                    isPointInsideRoundedRect(
+                      point.x,
+                      point.y,
+                      { x: 0, y: 0, w: room.width, h: room.height },
+                      room.radius,
+                    ),
+                  );
             const x = offsetX + (baseX - origin.x) * scale;
             const y = offsetY + (baseY - origin.y) * scale;
             const baseW = item.width * scale;

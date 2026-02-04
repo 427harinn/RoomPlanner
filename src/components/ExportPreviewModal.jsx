@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useRef, useState } from "react";
+﻿import React, { useMemo, useRef, useState, useEffect } from "react";
 import { getRoomsBounds, getDisplaySize } from "../utils/layout.js";
 
 const A4 = { w: 297, h: 210 };
@@ -265,6 +265,16 @@ export default function ExportPreviewModal({
   const dragStateRef = useRef(null);
   const [labelOverrides, setLabelOverrides] = useState({});
   const [editState, setEditState] = useState(null);
+  useEffect(() => {
+    if (!editState) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key === "Backspace" || event.key === "Delete") {
+        event.stopPropagation();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [editState]);
 
   const safeRooms = Array.isArray(rooms) ? rooms : [];
   const safeFurnitures = Array.isArray(furnitures) ? furnitures : [];
