@@ -16,6 +16,7 @@ export default function RoomCanvas({
   canToggleViewMode,
   onToggleViewMode,
   gridMM,
+  isMobile,
   dispatch,
 }) {
   const ROOM_LABEL_MAX = 20;
@@ -103,7 +104,7 @@ export default function RoomCanvas({
     dragRef.current.bounds
       ? expandBounds(dragRef.current.bounds, liveBounds)
       : liveBounds;
-  const padPx = CANVAS_PADDING_MM * scale;
+  const padPx = isMobile ? 0 : CANVAS_PADDING_MM * scale;
   const width = bounds.width * scale + padPx * 2;
   const height = bounds.height * scale + padPx * 2;
   const offsetX = CONFIG.margin + padPx - bounds.minX * scale;
@@ -299,7 +300,7 @@ export default function RoomCanvas({
           payload: { id, x: snapped.x, y: snapped.y },
         });
         const container = containerRef.current;
-        if (container) {
+        if (container && !isMobile) {
           const roomX = offsetX + (snapped.x - origin.x) * scale;
           const roomY = offsetY + (snapped.y - origin.y) * scale;
           const roomW = room.width * scale;
@@ -522,10 +523,10 @@ export default function RoomCanvas({
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    if (dragRef.current.active) return;
+    if (dragRef.current.active || isMobile) return;
     container.scrollLeft = padPx;
     container.scrollTop = padPx;
-  }, [padPx, bounds.minX, bounds.minY, bounds.width, bounds.height]);
+  }, [padPx, bounds.minX, bounds.minY, bounds.width, bounds.height, isMobile]);
 
   const roomGrid = visibleRooms.flatMap((room) => {
     const lines = [];

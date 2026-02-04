@@ -6,6 +6,9 @@ export default function ObjectListPanel({
   setOpenRooms,
   selectedRoomId,
   selectedFurniture,
+  templates = [],
+  selectedTemplateId,
+  setSelectedTemplateId,
   selectionSource,
   setSelectionSource,
   editing,
@@ -35,6 +38,21 @@ export default function ObjectListPanel({
         >
           部屋を追加
         </button>
+        <label>
+          テンプレ
+          <select
+            value={selectedTemplateId}
+            onChange={(event) => setSelectedTemplateId(event.target.value)}
+            disabled={templates.length === 0}
+          >
+            <option value="">通常</option>
+            {templates.map((template) => (
+              <option key={template.id} value={template.id}>
+                {template.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <button
           className="btn"
           type="button"
@@ -44,7 +62,12 @@ export default function ObjectListPanel({
             if (isMobile) {
               setMobileTab("editor");
             }
-            dispatch({ type: "ADD_FURNITURE", payload: {} });
+            dispatch({
+              type: "ADD_FURNITURE",
+              payload: selectedTemplateId
+                ? { templateId: selectedTemplateId }
+                : {},
+            });
           }}
         >
           家具追加
