@@ -1,6 +1,14 @@
-const DEFAULT_ROOM = { width: 3600, height: 2600, x: 0, y: 0 };
+﻿const DEFAULT_ROOM = { width: 3600, height: 2600, x: 0, y: 0 };
 const DEFAULT_COLOR = "#8ecae6";
 const DEFAULT_GRID_MM = 100;
+const DEFAULT_TEMPLATE = {
+  name: "家具",
+  width: 1200,
+  height: 600,
+  color: DEFAULT_COLOR,
+  rotation: 0,
+  radius: { tl: 0, tr: 0, br: 0, bl: 0 },
+};
 
 const createId = () => {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -45,14 +53,6 @@ const DEFAULT_ROOM_INSTANCE = createRoom({
   y: DEFAULT_ROOM.y,
 });
 
-export const initialState = {
-  rooms: [DEFAULT_ROOM_INSTANCE],
-  activeRoomId: DEFAULT_ROOM_INSTANCE.id,
-  furnitures: [],
-  selectedId: null,
-  gridMM: DEFAULT_GRID_MM,
-};
-
 const normalizeRoom = (room) => {
   const width = toNumber(room?.width ?? room?.w ?? DEFAULT_ROOM.width);
   const height = toNumber(room?.height ?? room?.h ?? DEFAULT_ROOM.height);
@@ -91,6 +91,101 @@ const normalizeFurniture = (f, fallbackRoomId) => ({
   },
 });
 
+const normalizeTemplate = (t) => ({
+  id: t?.id ?? createId(),
+  name: t?.name ?? DEFAULT_TEMPLATE.name,
+  width: toNumber(t?.width) || DEFAULT_TEMPLATE.width,
+  height: toNumber(t?.height) || DEFAULT_TEMPLATE.height,
+  color: t?.color ?? DEFAULT_TEMPLATE.color,
+  rotation: [0, 90, 180, 270].includes(t?.rotation) ? t.rotation : 0,
+  radius: normalizeRadius(t?.radius ?? DEFAULT_TEMPLATE.radius),
+});
+
+const normalizeTemplates = (templates) =>
+  Array.isArray(templates) ? templates.map(normalizeTemplate) : [];
+
+export const initialState = {
+  rooms: [DEFAULT_ROOM_INSTANCE],
+  activeRoomId: DEFAULT_ROOM_INSTANCE.id,
+  furnitures: [],
+  selectedId: null,
+  gridMM: DEFAULT_GRID_MM,
+  templates: normalizeTemplates([
+    {
+      name: "シングルベッド",
+      width: 970,
+      height: 1950,
+      color: "#93c5fd",
+      rotation: 0,
+      radius: { tl: 0, tr: 0, br: 0, bl: 0 },
+    },
+    {
+      name: "デスク",
+      width: 1200,
+      height: 600,
+      color: "#fde68a",
+      rotation: 0,
+      radius: { tl: 0, tr: 0, br: 0, bl: 0 },
+    },
+    {
+      name: "チェア",
+      width: 450,
+      height: 450,
+      color: "#bbf7d0",
+      rotation: 0,
+      radius: { tl: 90, tr: 90, br: 90, bl: 90 },
+    },
+    {
+      name: "ソファ(2人掛け)",
+      width: 1500,
+      height: 800,
+      color: "#fecaca",
+      rotation: 0,
+      radius: { tl: 8, tr: 8, br: 8, bl: 8 },
+    },
+    {
+      name: "本棚",
+      width: 900,
+      height: 300,
+      color: "#e9d5ff",
+      rotation: 0,
+      radius: { tl: 0, tr: 0, br: 0, bl: 0 },
+    },
+    {
+      name: "ローテーブル",
+      width: 1000,
+      height: 500,
+      color: "#fed7aa",
+      rotation: 0,
+      radius: { tl: 4, tr: 4, br: 4, bl: 4 },
+    },
+    {
+      name: "ダイニングテーブル(4人)",
+      width: 1400,
+      height: 800,
+      color: "#fef3c7",
+      rotation: 0,
+      radius: { tl: 6, tr: 6, br: 6, bl: 6 },
+    },
+    {
+      name: "テレビ台",
+      width: 1200,
+      height: 400,
+      color: "#e2e8f0",
+      rotation: 0,
+      radius: { tl: 0, tr: 0, br: 0, bl: 0 },
+    },
+    {
+      name: "冷蔵庫",
+      width: 650,
+      height: 650,
+      color: "#cbd5f5",
+      rotation: 0,
+      radius: { tl: 4, tr: 4, br: 4, bl: 4 },
+    },
+  ]),
+};
+
 const normalizeLayout = (data) => {
   const rooms = Array.isArray(data?.rooms)
     ? data.rooms.map(normalizeRoom)
@@ -111,6 +206,7 @@ const normalizeLayout = (data) => {
     rooms,
     furnitures: normalizedFurnitures,
     gridMM: toNumber(data?.gridMM) || DEFAULT_GRID_MM,
+    templates: normalizeTemplates(data?.templates),
   };
 };
 
@@ -135,7 +231,7 @@ const cloneFurniture = (source, roomId) => ({
 export const createFurniture = ({ name, width, height, color, roomId }) => ({
   id: createId(),
   roomId,
-  name: name && name.trim() ? name : "デスク",
+  name: name && name.trim() ? name : "家具",
   width: toNumber(width) || 1200,
   height: toNumber(height) || 600,
   x: 100,
@@ -310,10 +406,21 @@ export function reducer(state, action) {
       );
       const targetRoomId = state.activeRoomId ?? selected?.roomId ?? null;
       if (!targetRoomId) return state;
+      const template =
+        action.payload?.templateId &&
+        state.templates.find((t) => t.id === action.payload.templateId);
       const furniture = createFurniture({
         ...action.payload,
         roomId: targetRoomId,
       });
+      if (template) {
+        furniture.name = template.name;
+        furniture.width = template.width;
+        furniture.height = template.height;
+        furniture.color = template.color;
+        furniture.rotation = template.rotation;
+        furniture.radius = normalizeRadius(template.radius);
+      }
       return {
         ...state,
         furnitures: [...state.furnitures, furniture],
@@ -466,6 +573,41 @@ export function reducer(state, action) {
         furnitures: normalized.furnitures,
         selectedId: null,
         gridMM: normalized.gridMM,
+        templates:
+          normalized.templates.length > 0
+            ? normalized.templates
+            : state.templates,
+      };
+    }
+    case "SET_TEMPLATES": {
+      return {
+        ...state,
+        templates: normalizeTemplates(action.payload),
+      };
+    }
+    case "ADD_TEMPLATE": {
+      const template = normalizeTemplate(action.payload);
+      return {
+        ...state,
+        templates: [...state.templates, template],
+      };
+    }
+    case "UPDATE_TEMPLATE": {
+      const { id, updates } = action.payload;
+      return {
+        ...state,
+        templates: state.templates.map((t) =>
+          t.id === id
+            ? { ...t, ...normalizeTemplate({ ...t, ...updates }) }
+            : t,
+        ),
+      };
+    }
+    case "DELETE_TEMPLATE": {
+      const id = action.payload;
+      return {
+        ...state,
+        templates: state.templates.filter((t) => t.id !== id),
       };
     }
     case "SET_GRID_MM": {

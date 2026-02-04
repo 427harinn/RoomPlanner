@@ -35,6 +35,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState("grid");
   const [gridInput, setGridInput] = useState("");
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const clipboardRef = useRef({ type: null, data: null });
   const selectedRoomId =
     state.activeRoomId ??
@@ -148,6 +149,9 @@ export default function App() {
       setOpenRooms={setOpenRooms}
       selectedRoomId={selectedRoomId}
       selectedFurniture={selectedFurniture}
+      templates={state.templates}
+      selectedTemplateId={selectedTemplateId}
+      setSelectedTemplateId={setSelectedTemplateId}
       selectionSource={selectionSource}
       setSelectionSource={setSelectionSource}
       editing={editing}
@@ -210,6 +214,7 @@ export default function App() {
               setViewMode((prev) => (prev === "all" ? "room" : "all"))
             }
             gridMM={state.gridMM}
+            isMobile={isMobile}
             dispatch={dispatchFromCanvas}
           />
         </section>
@@ -233,6 +238,7 @@ export default function App() {
           gridInput={gridInput}
           setGridInput={setGridInput}
           gridMM={state.gridMM}
+          templates={state.templates}
           rooms={state.rooms}
           furnitures={state.furnitures}
           dispatch={dispatch}
