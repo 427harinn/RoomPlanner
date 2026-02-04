@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+﻿import React, { useMemo, useRef, useState } from "react";
 import { getRoomsBounds, getDisplaySize } from "../utils/layout.js";
 
 const A4 = { w: 297, h: 210 };
@@ -11,6 +11,7 @@ const ROOM_SIZE_FONT = 6.5;
 const LABEL_LINE_HEIGHT = 1.25;
 const LABEL_PADDING = 1.5;
 const EDGE_GAP = 2.5;
+const INSIDE_GAP = 1;
 
 const TYPE_LABELS = {
   door: "ドア",
@@ -44,6 +45,29 @@ const getLabelBox = (lines, fontSize, scale) => {
     height: lines.length * lineHeight + (LABEL_PADDING * 2) / scale,
     lineHeight,
   };
+};
+
+const fitFontSizeForBox = (lines, fontSize, scale, aabb, minFont, gap) => {
+  let nextSize = fontSize;
+  while (nextSize > minFont) {
+    const { width, height } = getLabelBox(lines, nextSize, scale);
+    if (
+      width <= aabb.w - gap / scale &&
+      height <= aabb.h - gap / scale
+    ) {
+      return nextSize;
+    }
+    nextSize -= 0.5;
+  }
+  return minFont;
+};
+
+const canFitInside = (lines, fontSize, scale, aabb, gap) => {
+  const { width, height } = getLabelBox(lines, fontSize, scale);
+  return (
+    width <= aabb.w - gap / scale &&
+    height <= aabb.h - gap / scale
+  );
 };
 
 const getTextBox = ({ x, y, text, fontSize, scale, anchor = "start" }) => {
@@ -257,6 +281,49 @@ export default function ExportPreviewModal({
         placedBoxes.push(box);
       };
 
+      safeFurnitures.forEach((item) => {
+        const room = safeRooms.find((r) => r.id === item.roomId);
+        const baseX = room ? room.x + item.x : item.x;
+        const baseY = room ? room.y + item.y : item.y;
+        const centerX = baseX + item.width / 2;
+        const centerY = baseY + item.height / 2;
+        const { w, h } = getDisplaySize(item);
+        const pad = EDGE_GAP / scale;
+        const obstacle = {
+          id: item.id,
+          x: centerX - w / 2 - pad,
+          y: centerY - h / 2 - pad,
+          width: w + pad * 2,
+          height: h + pad * 2,
+        };
+        obstacles.push(obstacle);
+        obstacleById.set(item.id, obstacle);
+      });
+
+      safeRooms.forEach((room) => {
+        (room.fixtures ?? []).forEach((fixture) => {
+          const baseX = room.x + fixture.x;
+          const baseY = room.y + fixture.y;
+          const centerX = baseX + fixture.width / 2;
+          const centerY = baseY + fixture.height / 2;
+          const { w, h } = getDisplaySize({
+            width: fixture.width,
+            height: fixture.height,
+            rotation: fixture.rotation,
+          });
+          const pad = EDGE_GAP / scale;
+          const obstacle = {
+            id: fixture.id,
+            x: centerX - w / 2 - pad,
+            y: centerY - h / 2 - pad,
+            width: w + pad * 2,
+            height: h + pad * 2,
+          };
+          obstacles.push(obstacle);
+          obstacleById.set(fixture.id, obstacle);
+        });
+      });
+
       const pushPlaced = (box) => {
         placedBoxes.push(box);
       };
@@ -269,8 +336,50 @@ export default function ExportPreviewModal({
         );
       };
 
-      const placeLabel = (aabb, ownObstacle, lines, fontSize) => {
+
+      const placeLabel = (aabb, ownObstacle, lines, fontSize, allowInside) => {
         const box = getLabelBox(lines, fontSize, scale);
+        const innerMinX = aabb.x + INSIDE_GAP / scale;
+        const innerMinY = aabb.y + INSIDE_GAP / scale;
+        const innerMaxX = aabb.x + aabb.w - INSIDE_GAP / scale - box.width;
+        const innerMaxY = aabb.y + aabb.h - INSIDE_GAP / scale - box.height;
+        if (allowInside && innerMaxX >= innerMinX && innerMaxY >= innerMinY) {
+          const centerX = aabb.cx - box.width / 2;
+          const centerY = aabb.cy - box.height / 2;
+          const step = 4 / scale;
+          const rings = 5;
+          for (let ring = 0; ring <= rings; ring += 1) {
+            for (let dx = -ring; dx <= ring; dx += 1) {
+              for (let dy = -ring; dy <= ring; dy += 1) {
+                if (ring > 0 && Math.abs(dx) !== ring && Math.abs(dy) !== ring) {
+                  continue;
+                }
+                const candidateBox = {
+                  x: Math.min(
+                    innerMaxX,
+                    Math.max(innerMinX, centerX + dx * step),
+                  ),
+                  y: Math.min(
+                    innerMaxY,
+                    Math.max(innerMinY, centerY + dy * step),
+                  ),
+                  width: box.width,
+                  height: box.height,
+                };
+                if (canPlace(candidateBox, ownObstacle)) {
+                  pushPlaced(candidateBox);
+                  return {
+                    ...candidateBox,
+                    lines,
+                    fontSize,
+                    lineHeight: box.lineHeight,
+                  };
+                }
+              }
+            }
+          }
+        }
+
         const candidates = [
           {
             x: aabb.cx - box.width / 2,
@@ -360,47 +469,6 @@ export default function ExportPreviewModal({
         return next;
       };
 
-      safeFurnitures.forEach((item) => {
-        const room = safeRooms.find((r) => r.id === item.roomId);
-        const baseX = room ? room.x + item.x : item.x;
-        const baseY = room ? room.y + item.y : item.y;
-        const { w, h } = getDisplaySize(item);
-        const centerX = baseX + item.width / 2;
-        const centerY = baseY + item.height / 2;
-        const obstacle = {
-          id: item.id,
-          x: centerX - w / 2,
-          y: centerY - h / 2,
-          width: w,
-          height: h,
-        };
-        obstacles.push(obstacle);
-        obstacleById.set(item.id, obstacle);
-      });
-
-      safeRooms.forEach((room) => {
-        (room.fixtures ?? []).forEach((fixture) => {
-          const baseX = room.x + fixture.x;
-          const baseY = room.y + fixture.y;
-          const { w, h } = getDisplaySize({
-            width: fixture.width,
-            height: fixture.height,
-            rotation: fixture.rotation,
-          });
-          const centerX = baseX + fixture.width / 2;
-          const centerY = baseY + fixture.height / 2;
-          const obstacle = {
-            id: fixture.id,
-            x: centerX - w / 2,
-            y: centerY - h / 2,
-            width: w,
-            height: h,
-          };
-          obstacles.push(obstacle);
-          obstacleById.set(fixture.id, obstacle);
-        });
-      });
-
       safeRooms.forEach((room) => {
         const positions = getRoomLabelPositions(room, safeRooms, scale);
 
@@ -463,6 +531,14 @@ export default function ExportPreviewModal({
         )}`;
         const memo = item.memo?.trim();
         const lines = memo ? [name, size, memo] : [name, size];
+        const fittedFont = fitFontSizeForBox(
+          lines,
+          LABEL_FONT,
+          scale,
+          aabb,
+          3,
+          INSIDE_GAP,
+        );
         if (override.moveToLegend) {
           const number = addLegendEntry(
             room,
@@ -478,7 +554,14 @@ export default function ExportPreviewModal({
           });
           return;
         }
-        const label = placeLabel(aabb, obstacle, lines, LABEL_FONT);
+        const allowInside = canFitInside(lines, fittedFont, scale, aabb, INSIDE_GAP);
+        const label = placeLabel(
+          aabb,
+          obstacle,
+          lines,
+          fittedFont,
+          allowInside,
+        );
         if (label) {
           furnitureLabels.push({ id: item.id, ...label });
         } else {
@@ -519,51 +602,75 @@ export default function ExportPreviewModal({
                   ? [`${labelName}: ${size}`, memo]
                   : [`${labelName}: ${size}`]
                 : fixture.type === "outlet"
-                ? memo
-                  ? [labelName, memo]
-                  : [labelName]
-                : memo
-                  ? [labelName, size, memo]
-                  : [labelName, size];
-        const { w, h } = getDisplaySize({
-          width: fixture.width,
-          height: fixture.height,
-          rotation: fixture.rotation,
-        });
-        const aabb = {
-          x: centerX - w / 2,
-          y: centerY - h / 2,
-          w,
-          h,
-          cx: centerX,
-          cy: centerY,
-        };
-        const obstacle = obstacleById.get(fixture.id) ?? {
-          x: aabb.x,
-          y: aabb.y,
-          width: aabb.w,
-          height: aabb.h,
-        };
-        if (override.moveToLegend) {
-          const number = addLegendEntry(
-            room,
-            `${labelName} ${size}${memo ? ` / ${memo}` : ""}`,
-          );
-          fixtureLabels.push({
-            id: fixture.id,
-            number,
-            numberOnly: true,
-            x: aabb.cx - 3 / scale,
-            y: aabb.cy + 3 / scale,
-            fontSize: LABEL_FONT,
+                  ? memo
+                    ? [labelName, memo]
+                    : [labelName]
+                  : memo
+                    ? [labelName, size, memo]
+                    : [labelName, size];
+          const { w, h } = getDisplaySize({
+            width: fixture.width,
+            height: fixture.height,
+            rotation: fixture.rotation,
           });
-          return;
-        }
-        const label = placeLabel(aabb, obstacle, lines, LABEL_FONT);
-        if (label) {
-          fixtureLabels.push({ id: fixture.id, ...label });
-        } else {
-            const number = addLegendEntry(room, `${labelName} ${size}${memo ? ` / ${memo}` : ""}`);
+          const aabb = {
+            x: centerX - w / 2,
+            y: centerY - h / 2,
+            w,
+            h,
+            cx: centerX,
+            cy: centerY,
+          };
+          const fittedFont = fitFontSizeForBox(
+            lines,
+            LABEL_FONT,
+            scale,
+            aabb,
+            3,
+            INSIDE_GAP,
+          );
+          const obstacle = obstacleById.get(fixture.id) ?? {
+            x: aabb.x,
+            y: aabb.y,
+            width: aabb.w,
+            height: aabb.h,
+          };
+          if (override.moveToLegend) {
+            const number = addLegendEntry(
+              room,
+              `${labelName} ${size}${memo ? ` / ${memo}` : ""}`,
+            );
+            fixtureLabels.push({
+              id: fixture.id,
+              number,
+              numberOnly: true,
+              x: aabb.cx - 3 / scale,
+              y: aabb.cy + 3 / scale,
+              fontSize: LABEL_FONT,
+            });
+            return;
+          }
+          const allowInside = canFitInside(
+            lines,
+            fittedFont,
+            scale,
+            aabb,
+            INSIDE_GAP,
+          );
+          const label = placeLabel(
+            aabb,
+            obstacle,
+            lines,
+            fittedFont,
+            allowInside,
+          );
+          if (label) {
+            fixtureLabels.push({ id: fixture.id, ...label });
+          } else {
+            const number = addLegendEntry(
+              room,
+              `${labelName} ${size}${memo ? ` / ${memo}` : ""}`,
+            );
             fixtureLabels.push({
               id: fixture.id,
               number,
@@ -604,25 +711,11 @@ export default function ExportPreviewModal({
     };
 
     const firstPass = build(baseScale);
-    const boundsWithLabels = firstPass.labelBoxes.reduce(
-      (acc, box) => ({
-        minX: Math.min(acc.minX, box.x),
-        minY: Math.min(acc.minY, box.y),
-        maxX: Math.max(acc.maxX, box.x + box.width),
-        maxY: Math.max(acc.maxY, box.y + box.height),
-      }),
-      {
-        minX: safeBounds.minX,
-        minY: safeBounds.minY,
-        maxX: safeBounds.minX + safeBounds.width,
-        maxY: safeBounds.minY + safeBounds.height,
-      },
-    );
     const contentBounds = {
-      minX: boundsWithLabels.minX,
-      minY: boundsWithLabels.minY,
-      width: boundsWithLabels.maxX - boundsWithLabels.minX,
-      height: boundsWithLabels.maxY - boundsWithLabels.minY,
+      minX: safeBounds.minX,
+      minY: safeBounds.minY,
+      width: safeBounds.width,
+      height: safeBounds.height,
     };
 
     const maxLegendWidth = A4.w - PAGE_MARGIN * 2;
@@ -671,13 +764,29 @@ export default function ExportPreviewModal({
     const renderScale = Math.min(scaleByWidth, scaleByHeight);
 
     const finalPass = build(renderScale);
+    const boundsWithLabels = finalPass.labelBoxes.reduce(
+      (acc, box) => ({
+        minX: Math.min(acc.minX, box.x),
+        minY: Math.min(acc.minY, box.y),
+        maxX: Math.max(acc.maxX, box.x + box.width),
+        maxY: Math.max(acc.maxY, box.y + box.height),
+      }),
+      {
+        minX: safeBounds.minX,
+        minY: safeBounds.minY,
+        maxX: safeBounds.minX + safeBounds.width,
+        maxY: safeBounds.minY + safeBounds.height,
+      },
+    );
     const offsetX =
-      (A4.w - contentBounds.width * renderScale) / 2 -
-      contentBounds.minX * renderScale;
+      (A4.w - (boundsWithLabels.maxX - boundsWithLabels.minX) * renderScale) / 2 -
+      boundsWithLabels.minX * renderScale;
     const offsetY =
       contentTop +
-      (availableHeight - contentBounds.height * renderScale) / 2 -
-      contentBounds.minY * renderScale;
+      (availableHeight -
+        (boundsWithLabels.maxY - boundsWithLabels.minY) * renderScale) /
+        2 -
+      boundsWithLabels.minY * renderScale;
 
     const finalLegendLines = buildLegendLines(
       finalPass.legendEntries,
@@ -832,7 +941,11 @@ export default function ExportPreviewModal({
       >
         <div className="modal__header">
           <h2>プレビュー（横）</h2>
-          <button className="btn btn--ghost btn--small" type="button" onClick={onClose}>
+          <button
+            className="btn btn--ghost btn--small"
+            type="button"
+            onClick={onClose}
+          >
             閉じる
           </button>
         </div>
@@ -905,7 +1018,7 @@ export default function ExportPreviewModal({
                       )}
                       fill="none"
                       stroke="#111"
-                      strokeWidth={1.6 / layout.scale}
+                      strokeWidth={1.1 / layout.scale}
                     />
                     <text
                       x={room.x + 6 / layout.scale}
@@ -960,7 +1073,7 @@ export default function ExportPreviewModal({
                         )}
                         fill={item.color ?? "#93c5fd"}
                         stroke="#111"
-                        strokeWidth={1.1 / layout.scale}
+                        strokeWidth={0.8 / layout.scale}
                         transform={
                           item.rotation
                             ? `rotate(${item.rotation} ${centerX} ${centerY})`
@@ -976,6 +1089,7 @@ export default function ExportPreviewModal({
                     const baseY = room.y + fixture.y;
                     const centerX = baseX + fixture.width / 2;
                     const centerY = baseY + fixture.height / 2;
+          const labelName = TYPE_LABELS[fixture.type] ?? fixture.type;
                     const isTriangle =
                       fixture.type === "pillar" && fixture.shape === "triangle";
                     const points = isTriangle ? getTrianglePoints(fixture) : [];
@@ -1239,3 +1353,11 @@ export default function ExportPreviewModal({
     </div>
   );
 }
+
+
+
+
+
+
+
+
