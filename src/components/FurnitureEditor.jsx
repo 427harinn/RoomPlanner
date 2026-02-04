@@ -10,6 +10,7 @@ export default function FurnitureEditor({ furniture, isMobile, dispatch }) {
   const [heightInput, setHeightInput] = useState("");
   const [rotationInput, setRotationInput] = useState("");
   const editingRef = useRef(false);
+
   const beginEdit = () => {
     if (editingRef.current) return;
     editingRef.current = true;
@@ -57,7 +58,7 @@ export default function FurnitureEditor({ furniture, isMobile, dispatch }) {
       <h2>家具編集</h2>
       <div className="form-grid editor-group editor-group--open">
         <label>
-          名前
+          名称
           <input
             value={furniture.name}
             onChange={(e) =>
@@ -89,6 +90,22 @@ export default function FurnitureEditor({ furniture, isMobile, dispatch }) {
             }
           />
         </label>
+        <label className="form-grid__full">
+          メモ
+          <textarea
+            rows={3}
+            value={furniture.memo ?? ""}
+            onChange={(e) =>
+              dispatch({
+                type: "UPDATE_FURNITURE",
+                payload: {
+                  id: furniture.id,
+                  updates: { memo: e.target.value },
+                },
+              })
+            }
+          />
+        </label>
       </div>
       <details
         className="editor-group"
@@ -98,7 +115,7 @@ export default function FurnitureEditor({ furniture, isMobile, dispatch }) {
         <summary>サイズ</summary>
         <div className="form-grid">
           <label>
-            幅(m)
+            幅 (m)
             <input
               type="number"
               step="0.01"
@@ -132,7 +149,7 @@ export default function FurnitureEditor({ furniture, isMobile, dispatch }) {
             />
           </label>
           <label>
-            高さ(m)
+            高さ (m)
             <input
               type="number"
               step="0.01"
@@ -166,7 +183,7 @@ export default function FurnitureEditor({ furniture, isMobile, dispatch }) {
             />
           </label>
           <label>
-            回転(°)
+            回転 (°)
             <input
               type="number"
               step="1"
@@ -197,7 +214,7 @@ export default function FurnitureEditor({ furniture, isMobile, dispatch }) {
         <summary>角丸</summary>
         <div className="form-grid">
           <label>
-            左上(°)
+            左上 (°)
             <div className="range-field">
               <input
                 type="range"
@@ -224,7 +241,7 @@ export default function FurnitureEditor({ furniture, isMobile, dispatch }) {
             </div>
           </label>
           <label>
-            右上(°)
+            右上 (°)
             <div className="range-field">
               <input
                 type="range"
@@ -251,7 +268,7 @@ export default function FurnitureEditor({ furniture, isMobile, dispatch }) {
             </div>
           </label>
           <label>
-            右下(°)
+            右下 (°)
             <div className="range-field">
               <input
                 type="range"
@@ -278,7 +295,7 @@ export default function FurnitureEditor({ furniture, isMobile, dispatch }) {
             </div>
           </label>
           <label>
-            左下(°)
+            左下 (°)
             <div className="range-field">
               <input
                 type="range"

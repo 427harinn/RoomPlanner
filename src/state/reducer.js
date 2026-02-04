@@ -12,6 +12,7 @@ const DEFAULT_FIXTURE = {
   shape: "rect",
   width: 200,
   height: 200,
+  memo: "",
 };
 const FIXTURE_DEFAULTS = {
   door: { width: 700, height: 200 },
@@ -79,6 +80,7 @@ const normalizeFixture = (fixture) => {
       40,
       toNumber(fixture?.height ?? fixture?.length ?? defaults.height),
     ),
+    memo: typeof fixture?.memo === "string" ? fixture.memo : "",
     trianglePoints:
       type === "pillar" && fixture?.shape === "triangle"
         ? Array.isArray(fixture?.trianglePoints) &&
@@ -166,6 +168,7 @@ const normalizeFurniture = (f, fallbackRoomId) => ({
   y: toNumber(f.y),
   color: f.color ?? DEFAULT_COLOR,
   rotation: Number.isFinite(Number(f.rotation)) ? Number(f.rotation) : 0,
+  memo: typeof f?.memo === "string" ? f.memo : "",
   radius: {
     tl: toNumber(f?.radius?.tl ?? f?.radiusTL ?? 0),
     tr: toNumber(f?.radius?.tr ?? f?.radiusTR ?? 0),
