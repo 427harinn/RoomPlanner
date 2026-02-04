@@ -486,6 +486,10 @@ export default function RoomCanvas({
           resizeTarget !== "room" && rotation
             ? rotateVector({ x: deltaScreenX, y: deltaScreenY }, -rotation)
             : { x: deltaScreenX, y: deltaScreenY };
+        const worldDelta =
+          resizeTarget !== "room" && rotation
+            ? rotateVector(localDelta, rotation)
+            : localDelta;
         let nextX = resizeBase.x;
         let nextY = resizeBase.y;
         let nextW = resizeBase.w;
@@ -500,14 +504,14 @@ export default function RoomCanvas({
         }
         if (hasW) {
           nextW = resizeBase.w - localDelta.x;
-          nextX = resizeBase.x + localDelta.x;
+          nextX = resizeBase.x + worldDelta.x;
         }
         if (hasS) {
           nextH = resizeBase.h + localDelta.y;
         }
         if (hasN) {
           nextH = resizeBase.h - localDelta.y;
-          nextY = resizeBase.y + localDelta.y;
+          nextY = resizeBase.y + worldDelta.y;
         }
         if (event.shiftKey) {
           const ratio = resizeBase.w / resizeBase.h || 1;
