@@ -461,6 +461,7 @@ export default function RoomCanvas({
   const startRoomDrag = (event, room) => {
     event.stopPropagation();
     event.preventDefault();
+    if (rooms.length <= 1) return;
     if (viewMode === "room") return;
     if (!svgRef.current) return;
     if (room.id !== activeRoomId) {
