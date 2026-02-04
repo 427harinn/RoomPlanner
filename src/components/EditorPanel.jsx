@@ -1,16 +1,29 @@
 import React from "react";
 import RoomEditor from "./RoomEditor.jsx";
 import FurnitureEditor from "./FurnitureEditor.jsx";
+import FixtureEditor from "./FixtureEditor.jsx";
 
 export default function EditorPanel({
   activeRoom,
   roomsCount,
   selectedFurniture,
+  selectedFixture,
+  selectedFixtureRoom,
   showRoomEditor,
   showFurnitureEditor,
+  showFixtureEditor,
   dispatch,
   isMobile,
 }) {
+  if (showFixtureEditor) {
+    return (
+      <FixtureEditor
+        room={selectedFixtureRoom}
+        fixture={selectedFixture}
+        dispatch={dispatch}
+      />
+    );
+  }
   if (showRoomEditor) {
     return (
       <RoomEditor

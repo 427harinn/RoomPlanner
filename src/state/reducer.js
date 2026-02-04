@@ -1,6 +1,24 @@
 ﻿const DEFAULT_ROOM = { width: 3600, height: 2600, x: 0, y: 0 };
 const DEFAULT_COLOR = "#8ecae6";
 const DEFAULT_GRID_MM = 100;
+const DEFAULT_FIXTURE = {
+  type: "door",
+  wall: "top",
+  offset: 200,
+  length: 800,
+  x: 0,
+  y: 0,
+  rotation: 0,
+  shape: "rect",
+  width: 200,
+  height: 200,
+};
+const FIXTURE_DEFAULTS = {
+  door: { width: 700, height: 200 },
+  window: { width: 1400, height: 160 },
+  outlet: { width: 120, height: 80 },
+  pillar: { width: 320, height: 320 },
+};
 const DEFAULT_TEMPLATE = {
   name: "家具",
   width: 1200,
@@ -29,7 +47,70 @@ const normalizeRadius = (radius) => ({
   bl: toNumber(radius?.bl),
 });
 
-const createRoom = ({ name, width, height, x, y, radius } = {}) => ({
+const normalizeFixture = (fixture) => {
+  const type = ["door", "window", "outlet", "pillar"].includes(fixture?.type)
+    ? fixture.type
+    : DEFAULT_FIXTURE.type;
+  const wall = ["top", "right", "bottom", "left", "free"].includes(
+    fixture?.wall,
+  )
+    ? fixture.wall
+    : DEFAULT_FIXTURE.wall;
+  const defaults = FIXTURE_DEFAULTS[type] ?? FIXTURE_DEFAULTS.door;
+  return {
+    id: fixture?.id ?? createId(),
+    type,
+    wall: type === "pillar" ? "free" : wall,
+    offset: Math.max(0, toNumber(fixture?.offset ?? DEFAULT_FIXTURE.offset)),
+    x: toNumber(fixture?.x ?? DEFAULT_FIXTURE.x),
+    y: toNumber(fixture?.y ?? DEFAULT_FIXTURE.y),
+    rotation: Number.isFinite(Number(fixture?.rotation))
+      ? Number(fixture.rotation)
+      : DEFAULT_FIXTURE.rotation,
+    shape:
+      type === "pillar" && ["rect", "triangle"].includes(fixture?.shape)
+        ? fixture.shape
+        : DEFAULT_FIXTURE.shape,
+    width: Math.max(
+      40,
+      toNumber(fixture?.width ?? fixture?.length ?? defaults.width),
+    ),
+    height: Math.max(
+      40,
+      toNumber(fixture?.height ?? fixture?.length ?? defaults.height),
+    ),
+    trianglePoints:
+      type === "pillar" && fixture?.shape === "triangle"
+        ? Array.isArray(fixture?.trianglePoints) &&
+          fixture.trianglePoints.length === 3
+          ? fixture.trianglePoints.map((point) => ({
+              x: toNumber(point?.x),
+              y: toNumber(point?.y),
+            }))
+          : defaultTrianglePoints(
+              Math.max(
+                40,
+                toNumber(fixture?.width ?? fixture?.length ?? defaults.width),
+              ),
+              Math.max(
+                40,
+                toNumber(fixture?.height ?? fixture?.length ?? defaults.height),
+              ),
+            )
+        : undefined,
+  };
+};
+
+const normalizeFixtures = (fixtures) =>
+  Array.isArray(fixtures) ? fixtures.map(normalizeFixture) : [];
+
+const defaultTrianglePoints = (width, height) => [
+  { x: width / 2, y: 0 },
+  { x: 0, y: height },
+  { x: width, y: height },
+];
+
+const createRoom = ({ name, width, height, x, y, radius, fixtures } = {}) => ({
   id: createId(),
   name: name ?? "部屋",
   width:
@@ -43,6 +124,7 @@ const createRoom = ({ name, width, height, x, y, radius } = {}) => ({
   x: toNumber(x),
   y: toNumber(y),
   radius: radius ?? { tl: 0, tr: 0, br: 0, bl: 0 },
+  fixtures: normalizeFixtures(fixtures),
 });
 
 const DEFAULT_ROOM_INSTANCE = createRoom({
@@ -70,6 +152,7 @@ const normalizeRoom = (room) => {
       br: toNumber(room?.radius?.br ?? room?.radiusBR ?? 0),
       bl: toNumber(room?.radius?.bl ?? room?.radiusBL ?? 0),
     },
+    fixtures: normalizeFixtures(room?.fixtures),
   };
 };
 
@@ -82,7 +165,7 @@ const normalizeFurniture = (f, fallbackRoomId) => ({
   x: toNumber(f.x),
   y: toNumber(f.y),
   color: f.color ?? DEFAULT_COLOR,
-  rotation: [0, 90, 180, 270].includes(f.rotation) ? f.rotation : 0,
+  rotation: Number.isFinite(Number(f.rotation)) ? Number(f.rotation) : 0,
   radius: {
     tl: toNumber(f?.radius?.tl ?? f?.radiusTL ?? 0),
     tr: toNumber(f?.radius?.tr ?? f?.radiusTR ?? 0),
@@ -97,7 +180,7 @@ const normalizeTemplate = (t) => ({
   width: toNumber(t?.width) || DEFAULT_TEMPLATE.width,
   height: toNumber(t?.height) || DEFAULT_TEMPLATE.height,
   color: t?.color ?? DEFAULT_TEMPLATE.color,
-  rotation: [0, 90, 180, 270].includes(t?.rotation) ? t.rotation : 0,
+  rotation: Number.isFinite(Number(t?.rotation)) ? Number(t.rotation) : 0,
   radius: normalizeRadius(t?.radius ?? DEFAULT_TEMPLATE.radius),
 });
 
@@ -109,6 +192,7 @@ export const initialState = {
   activeRoomId: DEFAULT_ROOM_INSTANCE.id,
   furnitures: [],
   selectedId: null,
+  selectedFixtureId: null,
   gridMM: DEFAULT_GRID_MM,
   templates: normalizeTemplates([
     {
@@ -224,8 +308,13 @@ const cloneFurniture = (source, roomId) => ({
   x: toNumber(source.x) + 100,
   y: toNumber(source.y) + 100,
   color: source.color ?? DEFAULT_COLOR,
-  rotation: source.rotation === 90 ? 90 : 0,
+  rotation: Number.isFinite(Number(source.rotation)) ? source.rotation : 0,
   radius: normalizeRadius(source.radius),
+});
+
+const cloneFixture = (source) => ({
+  ...normalizeFixture(source),
+  id: createId(),
 });
 
 export const createFurniture = ({ name, width, height, color, roomId }) => ({
@@ -248,6 +337,7 @@ export function reducer(state, action) {
         ...state,
         activeRoomId: action.payload,
         selectedId: null,
+        selectedFixtureId: null,
       };
     }
     case "ADD_ROOM": {
@@ -268,6 +358,7 @@ export function reducer(state, action) {
         rooms: [...state.rooms, room],
         activeRoomId: room.id,
         selectedId: null,
+        selectedFixtureId: null,
       };
     }
     case "DUPLICATE_ROOM": {
@@ -280,6 +371,7 @@ export function reducer(state, action) {
         height: source.height,
         x: source.x + 200,
         y: source.y + 200,
+        fixtures: (source.fixtures ?? []).map(cloneFixture),
       });
 
       const duplicatedFurnitures = state.furnitures
@@ -296,17 +388,22 @@ export function reducer(state, action) {
         furnitures: [...state.furnitures, ...duplicatedFurnitures],
         activeRoomId: room.id,
         selectedId: null,
+        selectedFixtureId: null,
       };
     }
     case "PASTE_ROOM": {
       const payload = action.payload;
       if (!payload?.room) return state;
+      const roomFixtures = Array.isArray(payload.room.fixtures)
+        ? payload.room.fixtures.map(cloneFixture)
+        : [];
       const room = createRoom({
         name: `${payload.room.name ?? "部屋"} コピー`,
         width: payload.room.width,
         height: payload.room.height,
         x: toNumber(payload.room.x) + 200,
         y: toNumber(payload.room.y) + 200,
+        fixtures: roomFixtures,
       });
       const furnitures = Array.isArray(payload.furnitures)
         ? payload.furnitures.map((item) => cloneFurniture(item, room.id))
@@ -317,6 +414,7 @@ export function reducer(state, action) {
         furnitures: [...state.furnitures, ...furnitures],
         activeRoomId: room.id,
         selectedId: null,
+        selectedFixtureId: null,
       };
     }
     case "UPDATE_ROOM": {
@@ -377,6 +475,9 @@ export function reducer(state, action) {
       const furnitures = state.furnitures.filter(
         (item) => item.roomId !== roomId,
       );
+      const remainingFixtureIds = new Set(
+        rooms.flatMap((room) => room.fixtures ?? []).map((fixture) => fixture.id),
+      );
       const activeRoomId =
         state.activeRoomId === roomId
           ? (rooms[0]?.id ?? null)
@@ -388,6 +489,9 @@ export function reducer(state, action) {
         furnitures,
         activeRoomId,
         selectedId: null,
+        selectedFixtureId: remainingFixtureIds.has(state.selectedFixtureId)
+          ? state.selectedFixtureId
+          : null,
       };
     }
     case "DELETE_FURNITURE": {
@@ -398,13 +502,18 @@ export function reducer(state, action) {
         ...state,
         furnitures,
         selectedId: null,
+        selectedFixtureId:
+          state.selectedFixtureId && state.selectedFixtureId === id
+            ? null
+            : state.selectedFixtureId,
       };
     }
     case "ADD_FURNITURE": {
       const selected = state.furnitures.find(
         (item) => item.id === state.selectedId,
       );
-      const targetRoomId = state.activeRoomId ?? selected?.roomId ?? null;
+      const targetRoomId =
+        action.payload?.roomId ?? state.activeRoomId ?? selected?.roomId ?? null;
       if (!targetRoomId) return state;
       const template =
         action.payload?.templateId &&
@@ -426,6 +535,7 @@ export function reducer(state, action) {
         furnitures: [...state.furnitures, furniture],
         selectedId: furniture.id,
         activeRoomId: null,
+        selectedFixtureId: null,
       };
     }
     case "DUPLICATE_FURNITURE": {
@@ -447,6 +557,7 @@ export function reducer(state, action) {
         furnitures: [...state.furnitures, furniture],
         selectedId: furniture.id,
         activeRoomId: null,
+        selectedFixtureId: null,
       };
     }
     case "PASTE_FURNITURE": {
@@ -465,6 +576,7 @@ export function reducer(state, action) {
         furnitures: [...state.furnitures, furniture],
         selectedId: furniture.id,
         activeRoomId: null,
+        selectedFixtureId: null,
       };
     }
     case "SELECT_FURNITURE": {
@@ -472,6 +584,15 @@ export function reducer(state, action) {
         ...state,
         selectedId: action.payload,
         activeRoomId: null,
+        selectedFixtureId: null,
+      };
+    }
+    case "SELECT_FIXTURE": {
+      return {
+        ...state,
+        selectedId: null,
+        activeRoomId: null,
+        selectedFixtureId: action.payload,
       };
     }
     case "UPDATE_FURNITURE": {
@@ -551,9 +672,9 @@ export function reducer(state, action) {
           f.id === id
             ? {
                 ...f,
-                rotation: (f.rotation + 90) % 360,
-                width: f.height,
-                height: f.width,
+                rotation: Number(f.rotation) + 90,
+                width: f.width,
+                height: f.height,
                 radius: {
                   tl: f.radius?.bl ?? 0,
                   tr: f.radius?.tl ?? 0,
@@ -572,6 +693,7 @@ export function reducer(state, action) {
         activeRoomId: normalized.rooms[0]?.id ?? null,
         furnitures: normalized.furnitures,
         selectedId: null,
+        selectedFixtureId: null,
         gridMM: normalized.gridMM,
         templates:
           normalized.templates.length > 0
@@ -608,6 +730,62 @@ export function reducer(state, action) {
       return {
         ...state,
         templates: state.templates.filter((t) => t.id !== id),
+      };
+    }
+    case "ADD_FIXTURE": {
+      const roomId = action.payload?.roomId;
+      const fixture = normalizeFixture(action.payload?.fixture ?? {});
+      if (!roomId) return state;
+      return {
+        ...state,
+        rooms: state.rooms.map((room) =>
+          room.id === roomId
+            ? { ...room, fixtures: [...(room.fixtures ?? []), fixture] }
+            : room,
+        ),
+        selectedFixtureId: fixture.id,
+        selectedId: null,
+        activeRoomId: null,
+      };
+    }
+    case "UPDATE_FIXTURE": {
+      const { roomId, fixtureId, updates } = action.payload ?? {};
+      if (!roomId || !fixtureId) return state;
+      return {
+        ...state,
+        rooms: state.rooms.map((room) =>
+          room.id === roomId
+            ? {
+                ...room,
+                fixtures: (room.fixtures ?? []).map((fixture) =>
+                  fixture.id === fixtureId
+                    ? normalizeFixture({ ...fixture, ...updates })
+                    : fixture,
+                ),
+              }
+            : room,
+        ),
+      };
+    }
+    case "DELETE_FIXTURE": {
+      const { roomId, fixtureId } = action.payload ?? {};
+      if (!roomId || !fixtureId) return state;
+      return {
+        ...state,
+        rooms: state.rooms.map((room) =>
+          room.id === roomId
+            ? {
+                ...room,
+                fixtures: (room.fixtures ?? []).filter(
+                  (fixture) => fixture.id !== fixtureId,
+                ),
+              }
+            : room,
+        ),
+        selectedFixtureId:
+          state.selectedFixtureId === fixtureId
+            ? null
+            : state.selectedFixtureId,
       };
     }
     case "SET_GRID_MM": {

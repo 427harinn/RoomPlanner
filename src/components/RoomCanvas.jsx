@@ -10,6 +10,7 @@ export default function RoomCanvas({
   rooms,
   furnitures,
   selectedId,
+  selectedFixtureId,
   activeRoomId,
   viewMode,
   viewRoomId,
@@ -23,6 +24,12 @@ export default function RoomCanvas({
   const ROOM_DIM_MAX = 30;
   const FURN_LABEL_MAX = 64;
   const FURN_DIM_MAX = 58;
+  const FIXTURE_COLORS = {
+    door: "#0f172a",
+    window: "#38bdf8",
+    outlet: "#f59e0b",
+    pillar: "#64748b",
+  };
   const formatMeters = (value) => {
     const meters = value / 1000;
     return `${meters.toFixed(5).replace(/\.?0+$/, "")} m`;
@@ -38,6 +45,14 @@ export default function RoomCanvas({
     active: false,
     kind: null,
     id: null,
+    roomId: null,
+    wall: null,
+    resizeHandle: null,
+    resizeTarget: null,
+    resizeBase: null,
+    resizeRotation: null,
+    resizeStart: null,
+    vertexIndex: null,
     offsetX: 0,
     offsetY: 0,
     scale: null,
@@ -228,6 +243,116 @@ export default function RoomCanvas({
     bl: degreesToRadius(radius?.bl, w, h),
   });
 
+  const rotatePoint = (point, center, deg) => {
+    if (!deg) return point;
+    const rad = (deg * Math.PI) / 180;
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+    const dx = point.x - center.x;
+    const dy = point.y - center.y;
+    return {
+      x: center.x + dx * cos - dy * sin,
+      y: center.y + dx * sin + dy * cos,
+    };
+  };
+
+  const rotateVector = (vector, deg) => {
+    if (!deg) return vector;
+    const rad = (deg * Math.PI) / 180;
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+    return {
+      x: vector.x * cos - vector.y * sin,
+      y: vector.x * sin + vector.y * cos,
+    };
+  };
+
+  const defaultTrianglePoints = (width, height) => [
+    { x: width / 2, y: 0 },
+    { x: 0, y: height },
+    { x: width, y: height },
+  ];
+
+  const getRotatedAabb = (w, h, rotation) => {
+    const rad = ((Number(rotation) || 0) * Math.PI) / 180;
+    const cos = Math.abs(Math.cos(rad));
+    const sin = Math.abs(Math.sin(rad));
+    return { w: w * cos + h * sin, h: w * sin + h * cos };
+  };
+
+  const getRotatedCorners = (x, y, w, h, rotation) => {
+    const center = { x: x + w / 2, y: y + h / 2 };
+    return [
+      rotatePoint({ x, y }, center, rotation),
+      rotatePoint({ x: x + w, y }, center, rotation),
+      rotatePoint({ x: x + w, y: y + h }, center, rotation),
+      rotatePoint({ x, y: y + h }, center, rotation),
+    ];
+  };
+
+  const getFixtureBaseSize = (fixture) => {
+    const width = Math.max(40, fixture.width ?? 120);
+    const height = Math.max(40, fixture.height ?? 120);
+    return { w: width, h: height };
+  };
+
+  const getFixtureAabbSize = (fixture) => {
+    const base = getFixtureBaseSize(fixture);
+    return getRotatedAabb(base.w, base.h, fixture.rotation);
+  };
+
+  const getFixtureRect = (room, fixture) => {
+    const { w, h } = getFixtureBaseSize(fixture);
+    return {
+      x: fixture.x ?? room.width / 2 - w / 2,
+      y: fixture.y ?? room.height / 2 - h / 2,
+      w,
+      h,
+    };
+  };
+
+  const getFixtureAabbRect = (room, fixture) => {
+    const base = getFixtureBaseSize(fixture);
+    const aabb = getFixtureAabbSize(fixture);
+    const centerX = (fixture.x ?? room.width / 2 - base.w / 2) + base.w / 2;
+    const centerY = (fixture.y ?? room.height / 2 - base.h / 2) + base.h / 2;
+    return {
+      x: centerX - aabb.w / 2,
+      y: centerY - aabb.h / 2,
+      w: aabb.w,
+      h: aabb.h,
+    };
+  };
+
+  const getTrianglePoints = (fixture) => {
+    if (
+      Array.isArray(fixture.trianglePoints) &&
+      fixture.trianglePoints.length === 3
+    ) {
+      return fixture.trianglePoints;
+    }
+    return defaultTrianglePoints(fixture.width ?? 200, fixture.height ?? 200);
+  };
+
+  const getTriangleWorldPoints = (room, fixture) => {
+    const points = getTrianglePoints(fixture);
+    const { w, h } = getFixtureBaseSize(fixture);
+    const center = {
+      x: (room?.x ?? 0) + (fixture.x ?? 0) + w / 2,
+      y: (room?.y ?? 0) + (fixture.y ?? 0) + h / 2,
+    };
+    return points.map((point) =>
+      rotatePoint(
+        {
+          x: (room?.x ?? 0) + (fixture.x ?? 0) + point.x,
+          y: (room?.y ?? 0) + (fixture.y ?? 0) + point.y,
+        },
+        center,
+        fixture.rotation ?? 0,
+      ),
+    );
+  };
+
   const getStraightInsets = (room) => {
     const r = toCornerRadius(room.radius, room.width, room.height);
     return {
@@ -273,10 +398,241 @@ export default function RoomCanvas({
       const {
         id,
         kind,
+        roomId,
+        wall,
+        resizeHandle,
+        resizeTarget,
+        resizeBase,
+        resizeRotation,
+        resizeStart,
+        vertexIndex,
         offsetX: dragOffsetX,
         offsetY: dragOffsetY,
       } = dragRef.current;
       if (!id) return;
+
+      if (kind === "vertex") {
+        const room = rooms.find((item) => item.id === roomId);
+        if (!room) return;
+        const fixture = (room.fixtures ?? []).find((item) => item.id === id);
+        if (!fixture) return;
+        const roomX = offsetX + (room.x - origin.x) * scale;
+        const roomY = offsetY + (room.y - origin.y) * scale;
+        const localX = (event.clientX - rect.left - roomX) / scale;
+        const localY = (event.clientY - rect.top - roomY) / scale;
+        const clampedX = Math.max(0, Math.min(localX, room.width));
+        const clampedY = Math.max(0, Math.min(localY, room.height));
+        const { w, h } = getFixtureAabbSize(fixture);
+        const center = {
+          x: fixture.x + w / 2,
+          y: fixture.y + h / 2,
+        };
+        const inverse = rotatePoint(
+          { x: clampedX, y: clampedY },
+          center,
+          -(fixture.rotation ?? 0),
+        );
+        const points = getTrianglePoints(fixture).map((point) => ({
+          x: point.x,
+          y: point.y,
+        }));
+        if (vertexIndex !== null && vertexIndex !== undefined) {
+          points[vertexIndex] = {
+            x: inverse.x - fixture.x,
+            y: inverse.y - fixture.y,
+          };
+        }
+        const xs = points.map((p) => p.x);
+        const ys = points.map((p) => p.y);
+        let minX = Math.min(...xs);
+        let minY = Math.min(...ys);
+        let maxX = Math.max(...xs);
+        let maxY = Math.max(...ys);
+        const minSize = 40;
+        if (maxX - minX < minSize) {
+          maxX = minX + minSize;
+        }
+        if (maxY - minY < minSize) {
+          maxY = minY + minSize;
+        }
+        const nextX = fixture.x + minX;
+        const nextY = fixture.y + minY;
+        const normalizedPoints = points.map((p) => ({
+          x: p.x - minX,
+          y: p.y - minY,
+        }));
+        dispatch({
+          type: "UPDATE_FIXTURE",
+          payload: {
+            roomId,
+            fixtureId: id,
+            updates: {
+              x: nextX,
+              y: nextY,
+              width: maxX - minX,
+              height: maxY - minY,
+              trianglePoints: normalizedPoints,
+            },
+          },
+        });
+        return;
+      }
+
+      if (kind === "resize" && resizeBase && resizeHandle && resizeTarget) {
+        const deltaScreenX = (event.clientX - resizeStart.x) / scale;
+        const deltaScreenY = (event.clientY - resizeStart.y) / scale;
+        const rotation = resizeRotation ?? 0;
+        const localDelta =
+          resizeTarget !== "room" && rotation
+            ? rotateVector({ x: deltaScreenX, y: deltaScreenY }, -rotation)
+            : { x: deltaScreenX, y: deltaScreenY };
+        let nextX = resizeBase.x;
+        let nextY = resizeBase.y;
+        let nextW = resizeBase.w;
+        let nextH = resizeBase.h;
+        const minSize = 80;
+        const hasW = resizeHandle.includes("w");
+        const hasE = resizeHandle.includes("e");
+        const hasN = resizeHandle.includes("n");
+        const hasS = resizeHandle.includes("s");
+        if (hasE) {
+          nextW = resizeBase.w + localDelta.x;
+        }
+        if (hasW) {
+          nextW = resizeBase.w - localDelta.x;
+          nextX = resizeBase.x + localDelta.x;
+        }
+        if (hasS) {
+          nextH = resizeBase.h + localDelta.y;
+        }
+        if (hasN) {
+          nextH = resizeBase.h - localDelta.y;
+          nextY = resizeBase.y + localDelta.y;
+        }
+        if (event.shiftKey) {
+          const ratio = resizeBase.w / resizeBase.h || 1;
+          if ((hasW || hasE) && (hasN || hasS)) {
+            if (Math.abs(localDelta.x) > Math.abs(localDelta.y)) {
+              nextH = nextW / ratio;
+              if (hasN) {
+                nextY = resizeBase.y + (resizeBase.h - nextH);
+              }
+            } else {
+              nextW = nextH * ratio;
+              if (hasW) {
+                nextX = resizeBase.x + (resizeBase.w - nextW);
+              }
+            }
+          } else if (hasW || hasE) {
+            nextH = nextW / ratio;
+            nextY = resizeBase.y + (resizeBase.h - nextH) / 2;
+          } else if (hasN || hasS) {
+            nextW = nextH * ratio;
+            nextX = resizeBase.x + (resizeBase.w - nextW) / 2;
+          }
+        }
+        if (nextW < minSize) {
+          nextW = minSize;
+          if (hasW) {
+            nextX = resizeBase.x + (resizeBase.w - minSize);
+          }
+        }
+        if (nextH < minSize) {
+          nextH = minSize;
+          if (hasN) {
+            nextY = resizeBase.y + (resizeBase.h - minSize);
+          }
+        }
+
+        if (resizeTarget === "room") {
+          dispatch({
+            type: "UPDATE_ROOM",
+            payload: {
+              id,
+              updates: {
+                x: nextX,
+                y: nextY,
+                width: nextW,
+                height: nextH,
+              },
+            },
+          });
+          return;
+        }
+
+        if (resizeTarget === "furniture") {
+          const room = rooms.find((item) => item.id === roomId);
+          const localX = room ? nextX - room.x : nextX;
+          const localY = room ? nextY - room.y : nextY;
+          dispatch({
+            type: "UPDATE_FURNITURE",
+            payload: {
+              id,
+              updates: {
+                x: localX,
+                y: localY,
+                width: nextW,
+                height: nextH,
+              },
+            },
+          });
+          return;
+        }
+
+        if (resizeTarget === "fixture") {
+          const targetRoom = rooms.find((item) => item.id === roomId);
+          if (!targetRoom) return;
+          const roomMinX = targetRoom.x;
+          const roomMinY = targetRoom.y;
+          const roomMaxX = targetRoom.x + targetRoom.width;
+          const roomMaxY = targetRoom.y + targetRoom.height;
+          let clampedX = nextX;
+          let clampedY = nextY;
+          let clampedW = nextW;
+          let clampedH = nextH;
+
+          if (clampedX < roomMinX) {
+            clampedW -= roomMinX - clampedX;
+            clampedX = roomMinX;
+          }
+          if (clampedY < roomMinY) {
+            clampedH -= roomMinY - clampedY;
+            clampedY = roomMinY;
+          }
+          if (clampedX + clampedW > roomMaxX) {
+            clampedW = roomMaxX - clampedX;
+          }
+          if (clampedY + clampedH > roomMaxY) {
+            clampedH = roomMaxY - clampedY;
+          }
+
+          clampedW = Math.max(minSize, clampedW);
+          clampedH = Math.max(minSize, clampedH);
+          if (clampedX + clampedW > roomMaxX) {
+            clampedX = Math.max(roomMinX, roomMaxX - clampedW);
+          }
+          if (clampedY + clampedH > roomMaxY) {
+            clampedY = Math.max(roomMinY, roomMaxY - clampedH);
+          }
+
+          const localX = clampedX - targetRoom.x;
+          const localY = clampedY - targetRoom.y;
+          dispatch({
+            type: "UPDATE_FIXTURE",
+            payload: {
+              roomId,
+              fixtureId: id,
+              updates: {
+                x: localX,
+                y: localY,
+                width: clampedW,
+                height: clampedH,
+              },
+            },
+          });
+          return;
+        }
+      }
 
       if (kind === "room") {
         if (viewMode === "room") return;
@@ -367,6 +723,214 @@ export default function RoomCanvas({
         return;
       }
 
+      if (kind === "fixture") {
+        const room = rooms.find((item) => item.id === roomId);
+        if (!room) return;
+        const fixture = (room.fixtures ?? []).find((item) => item.id === id);
+        if (!fixture) return;
+        const roomX = offsetX + (room.x - origin.x) * scale;
+        const roomY = offsetY + (room.y - origin.y) * scale;
+        const localX = (event.clientX - rect.left - roomX) / scale;
+        const localY = (event.clientY - rect.top - roomY) / scale;
+        const baseSize = getFixtureBaseSize(fixture);
+        const currentAabb = getFixtureAabbSize(fixture);
+        const w = currentAabb.w;
+        const h = currentAabb.h;
+        let nextX = localX - dragOffsetX / scale;
+        let nextY = localY - dragOffsetY / scale;
+        nextX = Math.max(0, Math.min(nextX, room.width - w));
+        nextY = Math.max(0, Math.min(nextY, room.height - h));
+        const snapThreshold = 60;
+        let snapSide = null;
+        let rotationUpdate = fixture.rotation;
+        let baseX = nextX + w / 2 - baseSize.w / 2;
+        let baseY = nextY + h / 2 - baseSize.h / 2;
+        let corners = getRotatedCorners(
+          baseX,
+          baseY,
+          baseSize.w,
+          baseSize.h,
+          rotationUpdate,
+        );
+        let minX = Math.min(...corners.map((point) => point.x));
+        let maxX = Math.max(...corners.map((point) => point.x));
+        let minY = Math.min(...corners.map((point) => point.y));
+        let maxY = Math.max(...corners.map((point) => point.y));
+        const wallDistances = [
+          { side: "left", dist: minX },
+          { side: "right", dist: room.width - maxX },
+          { side: "top", dist: minY },
+          { side: "bottom", dist: room.height - maxY },
+        ];
+        const nearestWall = wallDistances.reduce((best, current) =>
+          current.dist < best.dist ? current : best,
+        );
+        if (nearestWall.dist <= snapThreshold) {
+          snapSide = nearestWall.side;
+          if (snapSide === "left") {
+            baseX -= minX;
+          } else if (snapSide === "right") {
+            baseX += room.width - maxX;
+          } else if (snapSide === "top") {
+            baseY -= minY;
+          } else if (snapSide === "bottom") {
+            baseY += room.height - maxY;
+          }
+        }
+        const pillars = (room.fixtures ?? []).filter(
+          (item) => item.id !== id && item.type === "pillar",
+        );
+        pillars.forEach((pillar) => {
+          if (pillar.shape === "triangle") {
+            const triangle = getTriangleWorldPoints(room, pillar);
+            const edges = [
+              [triangle[0], triangle[1]],
+              [triangle[1], triangle[2]],
+              [triangle[2], triangle[0]],
+            ];
+            const fixtureCorners = getRotatedCorners(
+              baseX,
+              baseY,
+              baseSize.w,
+              baseSize.h,
+              rotationUpdate,
+            );
+            edges.forEach(([a, b]) => {
+              const abx = b.x - a.x;
+              const aby = b.y - a.y;
+              const length = Math.hypot(abx, aby) || 1;
+              const nx = -aby / length;
+              const ny = abx / length;
+              let best = { dist: Infinity, signed: 0 };
+              fixtureCorners.forEach((corner) => {
+                const signed =
+                  (corner.x - a.x) * nx + (corner.y - a.y) * ny;
+                const dist = Math.abs(signed);
+                if (dist < best.dist) {
+                  best = { dist, signed };
+                }
+              });
+              if (best.dist <= snapThreshold) {
+                const angle = (Math.atan2(aby, abx) * 180) / Math.PI;
+                rotationUpdate = (angle + 360) % 360;
+                const rotatedCorners = getRotatedCorners(
+                  baseX,
+                  baseY,
+                  baseSize.w,
+                  baseSize.h,
+                  rotationUpdate,
+                );
+                let bestRotated = { dist: Infinity, signed: 0 };
+                rotatedCorners.forEach((corner) => {
+                  const signed =
+                    (corner.x - a.x) * nx + (corner.y - a.y) * ny;
+                  const dist = Math.abs(signed);
+                  if (dist < bestRotated.dist) {
+                    bestRotated = { dist, signed };
+                  }
+                });
+                baseX -= nx * bestRotated.signed;
+                baseY -= ny * bestRotated.signed;
+                snapSide = "pillar";
+              }
+            });
+          } else {
+            const pillarRect = getFixtureRect(room, pillar);
+            const px = pillarRect.x;
+            const py = pillarRect.y;
+            const pillarW = pillarRect.w;
+            const pillarH = pillarRect.h;
+            const pillarEdges = [
+              { side: "left", dist: Math.abs(minX - (px + pillarW)) },
+              { side: "right", dist: Math.abs(maxX - px) },
+              { side: "top", dist: Math.abs(minY - (py + pillarH)) },
+              { side: "bottom", dist: Math.abs(maxY - py) },
+            ];
+            const nearest = pillarEdges.reduce((best, current) =>
+              current.dist < best.dist ? current : best,
+            );
+            if (nearest.dist <= snapThreshold) {
+              if (nearest.side === "left") {
+                baseX += px + pillarW - minX;
+                snapSide = "right";
+              } else if (nearest.side === "right") {
+                baseX += px - maxX;
+                snapSide = "left";
+              } else if (nearest.side === "top") {
+                baseY += py + pillarH - minY;
+                snapSide = "bottom";
+              } else if (nearest.side === "bottom") {
+                baseY += py - maxY;
+                snapSide = "top";
+              }
+            }
+          }
+        });
+        corners = getRotatedCorners(
+          baseX,
+          baseY,
+          baseSize.w,
+          baseSize.h,
+          rotationUpdate,
+        );
+        minX = Math.min(...corners.map((point) => point.x));
+        maxX = Math.max(...corners.map((point) => point.x));
+        minY = Math.min(...corners.map((point) => point.y));
+        maxY = Math.max(...corners.map((point) => point.y));
+        if (fixture.type !== "pillar" && snapSide) {
+          rotationUpdate =
+            snapSide === "left" || snapSide === "right" ? 90 : 0;
+        }
+        if (snapSide === "left" || snapSide === "right" || snapSide === "top" || snapSide === "bottom") {
+          const rotatedCorners = getRotatedCorners(
+            baseX,
+            baseY,
+            baseSize.w,
+            baseSize.h,
+            rotationUpdate,
+          );
+          const rotatedMinX = Math.min(...rotatedCorners.map((point) => point.x));
+          const rotatedMaxX = Math.max(...rotatedCorners.map((point) => point.x));
+          const rotatedMinY = Math.min(...rotatedCorners.map((point) => point.y));
+          const rotatedMaxY = Math.max(...rotatedCorners.map((point) => point.y));
+          if (snapSide === "left") {
+            baseX += 0 - rotatedMinX;
+          } else if (snapSide === "right") {
+            baseX += room.width - rotatedMaxX;
+          } else if (snapSide === "top") {
+            baseY += 0 - rotatedMinY;
+          } else if (snapSide === "bottom") {
+            baseY += room.height - rotatedMaxY;
+          }
+        }
+        const activeAabb = getRotatedAabb(
+          baseSize.w,
+          baseSize.h,
+          rotationUpdate,
+        );
+        const centerX = baseX + baseSize.w / 2;
+        const centerY = baseY + baseSize.h / 2;
+        let aabbX = centerX - activeAabb.w / 2;
+        let aabbY = centerY - activeAabb.h / 2;
+        aabbX = Math.max(0, Math.min(aabbX, room.width - activeAabb.w));
+        aabbY = Math.max(0, Math.min(aabbY, room.height - activeAabb.h));
+        baseX = aabbX + activeAabb.w / 2 - baseSize.w / 2;
+        baseY = aabbY + activeAabb.h / 2 - baseSize.h / 2;
+        dispatch({
+          type: "UPDATE_FIXTURE",
+          payload: {
+            roomId,
+            fixtureId: id,
+            updates: {
+              x: baseX,
+              y: baseY,
+              rotation: rotationUpdate,
+            },
+          },
+        });
+        return;
+      }
+
       const target = furnitures.find((item) => item.id === id);
       if (!target) return;
       const room = rooms.find((item) => item.id === target.roomId);
@@ -395,7 +959,7 @@ export default function RoomCanvas({
         });
       }
     },
-    [dispatch, furnitures, rooms, scale, offsetX, offsetY],
+    [dispatch, furnitures, rooms, scale, offsetX, offsetY, origin.x, origin.y],
   );
 
   const stopDragging = useCallback(() => {
@@ -403,6 +967,14 @@ export default function RoomCanvas({
       active: false,
       kind: null,
       id: null,
+      roomId: null,
+      wall: null,
+      resizeHandle: null,
+      resizeTarget: null,
+      resizeBase: null,
+      resizeRotation: null,
+      resizeStart: null,
+      vertexIndex: null,
       offsetX: 0,
       offsetY: 0,
       scale: null,
@@ -452,6 +1024,8 @@ export default function RoomCanvas({
       active: true,
       kind: "furniture",
       id,
+      roomId: null,
+      wall: null,
       offsetX:
         event.clientX - rect.left - (offsetX + (baseX - origin.x) * scale),
       offsetY:
@@ -466,12 +1040,11 @@ export default function RoomCanvas({
   const startRoomDrag = (event, room) => {
     event.stopPropagation();
     event.preventDefault();
-    if (rooms.length <= 1) return;
-    if (viewMode === "room") return;
-    if (!svgRef.current) return;
     if (room.id !== activeRoomId) {
       dispatch({ type: "SET_ACTIVE_ROOM", payload: room.id });
     }
+    if (rooms.length <= 1 || viewMode === "room") return;
+    if (!svgRef.current) return;
 
     dispatch({ type: "BEGIN_DRAG" });
     const rect = svgRef.current.getBoundingClientRect();
@@ -480,6 +1053,8 @@ export default function RoomCanvas({
       active: true,
       kind: "room",
       id: room.id,
+      roomId: null,
+      wall: null,
       offsetX:
         event.clientX - rect.left - (offsetX + (room.x - origin.x) * scale),
       offsetY:
@@ -589,7 +1164,7 @@ export default function RoomCanvas({
           onClick={onToggleViewMode}
           disabled={viewMode === "all" && !canToggleViewMode}
         >
-          {viewMode === "all" ? "部屋表示" : "全体表示"}
+          {viewMode === "all" ? "部屋のみ表示" : "全体表示"}
         </button>
       </div>
       <svg
@@ -613,6 +1188,100 @@ export default function RoomCanvas({
           const dimSize = Math.min(ROOM_DIM_MAX, Math.max(8, roomBase * 0.07));
           const nameOffset = Math.max(6, labelSize * 0.7);
           const sideOffset = Math.max(10, dimSize * 0.7);
+          const fixtureElements = (room.fixtures ?? []).map((fixture) => {
+            const rect = getFixtureRect(room, fixture);
+            const x = roomX + rect.x * scale;
+            const y = roomY + rect.y * scale;
+            const w = rect.w * scale;
+            const h = rect.h * scale;
+            const stroke =
+              fixture.id === selectedFixtureId
+                ? "#ef4444"
+                : fixture.type === "pillar"
+                  ? "#333"
+                  : "#1f2933";
+            const strokeWidth =
+              fixture.id === selectedFixtureId
+                ? "2.5"
+                : fixture.type === "pillar"
+                  ? "2"
+                  : "1";
+            const handlePointerDown = (event) => {
+              event.stopPropagation();
+              event.preventDefault();
+              const svgRect = svgRef.current?.getBoundingClientRect();
+              const aabbRect = getFixtureAabbRect(room, fixture);
+              const ax = roomX + aabbRect.x * scale;
+              const ay = roomY + aabbRect.y * scale;
+              const dragOffsetX = svgRect
+                ? event.clientX - (ax + svgRect.left)
+                : 0;
+              const dragOffsetY = svgRect
+                ? event.clientY - (ay + svgRect.top)
+                : 0;
+              dragRef.current = {
+                active: true,
+                kind: "fixture",
+                id: fixture.id,
+                roomId: room.id,
+                wall: fixture.wall,
+                offsetX: dragOffsetX,
+                offsetY: dragOffsetY,
+                scale: null,
+                bounds: null,
+                lastRoomPos: null,
+              };
+              dispatch({ type: "SELECT_FIXTURE", payload: fixture.id });
+              handlerRef.current = { onMouseMove, onMouseUp };
+              window.addEventListener("pointermove", onMouseMove);
+              window.addEventListener("pointerup", onMouseUp);
+              window.addEventListener("pointercancel", onMouseUp);
+            };
+
+            if (fixture.type === "pillar" && fixture.shape === "triangle") {
+              const rotatedPoints = getTriangleWorldPoints(room, fixture);
+              const points = rotatedPoints
+                .map(
+                  (point) =>
+                    `${offsetX + (point.x - origin.x) * scale},${
+                      offsetY + (point.y - origin.y) * scale
+                    }`,
+                )
+                .join(" ");
+              return (
+                <polygon
+                  key={fixture.id}
+                  points={points}
+                  fill={FIXTURE_COLORS[fixture.type] ?? "#475569"}
+                  opacity="0.85"
+                  stroke={stroke}
+                  strokeWidth={strokeWidth}
+                  onPointerDown={handlePointerDown}
+                />
+              );
+            }
+
+            const centerX = x + w / 2;
+            const centerY = y + h / 2;
+            const transform = fixture.rotation
+              ? `rotate(${fixture.rotation} ${centerX} ${centerY})`
+              : undefined;
+            return (
+              <rect
+                key={fixture.id}
+                x={x}
+                y={y}
+                width={w}
+                height={h}
+                fill={FIXTURE_COLORS[fixture.type] ?? "#475569"}
+                opacity="0.85"
+                stroke={stroke}
+                strokeWidth={strokeWidth}
+                transform={transform}
+                onPointerDown={handlePointerDown}
+              />
+            );
+          });
 
           return (
             <g key={room.id}>
@@ -637,6 +1306,7 @@ export default function RoomCanvas({
                 strokeWidth={isActive ? "3" : "2"}
                 pointerEvents="none"
               />
+              {fixtureElements}
               <text
                 x={roomX + 8}
                 y={roomY - nameOffset}
@@ -669,6 +1339,249 @@ export default function RoomCanvas({
             </g>
           );
         })}
+        {(() => {
+          const getHandleRects = (x, y, w, h) => {
+            const size = 8;
+            const half = size / 2;
+            return [
+              { key: "nw", x: x - half, y: y - half, cursor: "nwse-resize" },
+              {
+                key: "n",
+                x: x + w / 2 - half,
+                y: y - half,
+                cursor: "ns-resize",
+              },
+              {
+                key: "ne",
+                x: x + w - half,
+                y: y - half,
+                cursor: "nesw-resize",
+              },
+              {
+                key: "e",
+                x: x + w - half,
+                y: y + h / 2 - half,
+                cursor: "ew-resize",
+              },
+              {
+                key: "se",
+                x: x + w - half,
+                y: y + h - half,
+                cursor: "nwse-resize",
+              },
+              {
+                key: "s",
+                x: x + w / 2 - half,
+                y: y + h - half,
+                cursor: "ns-resize",
+              },
+              {
+                key: "sw",
+                x: x - half,
+                y: y + h - half,
+                cursor: "nesw-resize",
+              },
+              {
+                key: "w",
+                x: x - half,
+                y: y + h / 2 - half,
+                cursor: "ew-resize",
+              },
+            ];
+          };
+
+          const getRotatedHandleRects = (x, y, w, h, rotation) => {
+            if (!rotation) {
+              return getHandleRects(x, y, w, h);
+            }
+            const center = { x: x + w / 2, y: y + h / 2 };
+            return getHandleRects(x, y, w, h).map((handle) => {
+              const point = rotatePoint(
+                { x: handle.x + 4, y: handle.y + 4 },
+                center,
+                rotation,
+              );
+              return {
+                ...handle,
+                x: point.x - 4,
+                y: point.y - 4,
+              };
+            });
+          };
+
+          const selectedRoom = rooms.find((item) => item.id === activeRoomId);
+          const selectedFurniture = furnitures.find(
+            (item) => item.id === selectedId,
+          );
+          const selectedFixtureRoom = rooms.find((entry) =>
+            (entry.fixtures ?? []).some(
+              (fixture) => fixture.id === selectedFixtureId,
+            ),
+          );
+          const selectedFixture = selectedFixtureRoom?.fixtures?.find(
+            (fixture) => fixture.id === selectedFixtureId,
+          );
+          let selectedRect = null;
+          let selectedTarget = null;
+          let selectedMeta = null;
+          if (selectedFixture && selectedFixtureRoom) {
+            const fixtureRect = getFixtureRect(
+              selectedFixtureRoom,
+              selectedFixture,
+            );
+            selectedRect = {
+              x: selectedFixtureRoom.x + fixtureRect.x,
+              y: selectedFixtureRoom.y + fixtureRect.y,
+              w: fixtureRect.w,
+              h: fixtureRect.h,
+            };
+            selectedTarget = "fixture";
+            selectedMeta = {
+              id: selectedFixture.id,
+              roomId: selectedFixtureRoom.id,
+              rotation: selectedFixture.rotation ?? 0,
+            };
+          } else if (selectedFurniture) {
+            const { w, h } = getDisplaySize(selectedFurniture);
+            const roomForFurniture = rooms.find(
+              (item) => item.id === selectedFurniture.roomId,
+            );
+            const baseX = roomForFurniture
+              ? roomForFurniture.x + selectedFurniture.x
+              : selectedFurniture.x;
+            const baseY = roomForFurniture
+              ? roomForFurniture.y + selectedFurniture.y
+              : selectedFurniture.y;
+            selectedRect = {
+              x: baseX,
+              y: baseY,
+              w: selectedFurniture.width,
+              h: selectedFurniture.height,
+            };
+            selectedTarget = "furniture";
+            selectedMeta = {
+              id: selectedFurniture.id,
+              roomId: roomForFurniture?.id ?? null,
+              rotation: selectedFurniture.rotation ?? 0,
+            };
+          } else if (selectedRoom) {
+            selectedRect = {
+              x: selectedRoom.x,
+              y: selectedRoom.y,
+              w: selectedRoom.width,
+              h: selectedRoom.height,
+            };
+            selectedTarget = "room";
+            selectedMeta = { id: selectedRoom.id };
+          }
+
+          if (
+            selectedFixture &&
+            selectedFixture.type === "pillar" &&
+            selectedFixture.shape === "triangle"
+          ) {
+            const rotatedPoints = getTriangleWorldPoints(
+              selectedFixtureRoom,
+              selectedFixture,
+            );
+            return rotatedPoints.map((point, index) => {
+              const cx = offsetX + (point.x - origin.x) * scale;
+              const cy = offsetY + (point.y - origin.y) * scale;
+              return (
+                <circle
+                  key={`vertex-${index}`}
+                  cx={cx}
+                  cy={cy}
+                  r={5}
+                  fill="#fff"
+                  stroke="#1f2933"
+                  strokeWidth="1"
+                  style={{ cursor: "move" }}
+                  onPointerDown={(event) => {
+                    event.stopPropagation();
+                    event.preventDefault();
+                    dragRef.current = {
+                      active: true,
+                      kind: "vertex",
+                      id: selectedMeta.id,
+                      roomId: selectedMeta.roomId ?? null,
+                      wall: null,
+                      resizeHandle: null,
+                      resizeTarget: null,
+                      resizeBase: null,
+                      resizeRotation: null,
+                      resizeStart: null,
+                      vertexIndex: index,
+                      offsetX: 0,
+                      offsetY: 0,
+                      scale: null,
+                      bounds: null,
+                      lastRoomPos: null,
+                    };
+                    handlerRef.current = { onMouseMove, onMouseUp };
+                    window.addEventListener("pointermove", onMouseMove);
+                    window.addEventListener("pointerup", onMouseUp);
+                    window.addEventListener("pointercancel", onMouseUp);
+                  }}
+                />
+              );
+            });
+          }
+
+          const resizeHandles =
+            selectedRect && selectedTarget
+              ? getRotatedHandleRects(
+                  offsetX + (selectedRect.x - origin.x) * scale,
+                  offsetY + (selectedRect.y - origin.y) * scale,
+                  selectedRect.w * scale,
+                  selectedRect.h * scale,
+                  selectedTarget === "room" ? 0 : selectedMeta.rotation ?? 0,
+                )
+              : [];
+
+          return resizeHandles.map((handle) => (
+            <rect
+              key={`${selectedTarget}-${handle.key}`}
+              x={handle.x}
+              y={handle.y}
+              width={8}
+              height={8}
+              fill="#fff"
+              stroke="#1f2933"
+              strokeWidth="1"
+              style={{ cursor: handle.cursor }}
+              onPointerDown={(event) => {
+                event.stopPropagation();
+                event.preventDefault();
+                dragRef.current = {
+                  active: true,
+                  kind: "resize",
+                  id: selectedMeta.id,
+                  roomId: selectedMeta.roomId ?? null,
+                  wall: null,
+                  resizeHandle: handle.key,
+                  resizeTarget: selectedTarget,
+                  resizeBase: selectedRect,
+                  resizeRotation: selectedMeta.rotation ?? 0,
+                  resizeStart: {
+                    x: event.clientX,
+                    y: event.clientY,
+                  },
+                  offsetX: 0,
+                  offsetY: 0,
+                  scale: null,
+                  bounds: null,
+                  lastRoomPos: null,
+                  vertexIndex: null,
+                };
+                handlerRef.current = { onMouseMove, onMouseUp };
+                window.addEventListener("pointermove", onMouseMove);
+                window.addEventListener("pointerup", onMouseUp);
+                window.addEventListener("pointercancel", onMouseUp);
+              }}
+            />
+          ));
+        })()}
 
         <text
           x={CONFIG.margin}
@@ -690,13 +1603,17 @@ export default function RoomCanvas({
             const room = rooms.find((entry) => entry.id === item.roomId);
             const baseX = room ? room.x + item.x : item.x;
             const baseY = room ? room.y + item.y : item.y;
+            const centerX = baseX + item.width / 2;
+            const centerY = baseY + item.height / 2;
+            const aabbX = centerX - w / 2;
+            const aabbY = centerY - h / 2;
             const isOutsideRoom = !room
               ? true
               : ![
-                  { x: item.x, y: item.y },
-                  { x: item.x + w, y: item.y },
-                  { x: item.x, y: item.y + h },
-                  { x: item.x + w, y: item.y + h },
+                  { x: aabbX - (room ? room.x : 0), y: aabbY - (room ? room.y : 0) },
+                  { x: aabbX - (room ? room.x : 0) + w, y: aabbY - (room ? room.y : 0) },
+                  { x: aabbX - (room ? room.x : 0), y: aabbY - (room ? room.y : 0) + h },
+                  { x: aabbX - (room ? room.x : 0) + w, y: aabbY - (room ? room.y : 0) + h },
                 ].every((point) =>
                   isPointInsideRoundedRect(
                     point.x,
@@ -707,9 +1624,9 @@ export default function RoomCanvas({
                 );
             const x = offsetX + (baseX - origin.x) * scale;
             const y = offsetY + (baseY - origin.y) * scale;
-            const itemWidth = w * scale;
-            const itemHeight = h * scale;
-            const itemBase = Math.min(itemWidth, itemHeight);
+            const baseW = item.width * scale;
+            const baseH = item.height * scale;
+            const itemBase = Math.min(baseW, baseH);
             const labelSize = Math.min(
               FURN_LABEL_MAX,
               Math.max(6, itemBase * 0.16),
@@ -718,6 +1635,21 @@ export default function RoomCanvas({
               FURN_DIM_MAX,
               Math.max(6, itemBase * 0.13),
             );
+            const centerPx = x + baseW / 2;
+            const centerPy = y + baseH / 2;
+            const transform = item.rotation
+              ? `rotate(${item.rotation} ${centerPx} ${centerPy})`
+              : undefined;
+            const rotationNorm =
+              ((Number(item.rotation) || 0) % 360 + 360) % 360;
+            const displayWidth =
+              rotationNorm === 90 || rotationNorm === 270
+                ? item.height
+                : item.width;
+            const displayHeight =
+              rotationNorm === 90 || rotationNorm === 270
+                ? item.width
+                : item.height;
 
             return (
               <g
@@ -728,29 +1660,30 @@ export default function RoomCanvas({
                   d={getRoundedRectPath(
                     x,
                     y,
-                    w * scale,
-                    h * scale,
-                    toCornerRadius(item.radius, w * scale, h * scale),
+                    baseW,
+                    baseH,
+                    toCornerRadius(item.radius, baseW, baseH),
                   )}
                   fill={isOutsideRoom ? "#f87171" : item.color}
                   stroke={item.id === selectedId ? "red" : "#333"}
                   strokeWidth="2"
+                  transform={transform}
                 />
                 <text
-                  x={x + (w * scale) / 2}
-                  y={y + (h * scale) / 2 - dimSize * 0.4}
+                  x={centerPx}
+                  y={centerPy - dimSize * 0.4}
                   textAnchor="middle"
                   fontSize={labelSize}
                 >
                   {item.name}
                 </text>
                 <text
-                  x={x + (w * scale) / 2}
-                  y={y + (h * scale) / 2 + dimSize * 0.8}
+                  x={centerPx}
+                  y={centerPy + dimSize * 0.8}
                   textAnchor="middle"
                   fontSize={dimSize}
                 >
-                  {formatMeters(item.width)} × {formatMeters(item.height)}
+                  {formatMeters(displayWidth)} × {formatMeters(displayHeight)}
                 </text>
               </g>
             );

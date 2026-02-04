@@ -2,6 +2,7 @@ import React from "react";
 
 export default function ObjectListPanel({
   state,
+  selectedFixtureId,
   openRooms,
   setOpenRooms,
   selectedRoomId,
@@ -21,6 +22,26 @@ export default function ObjectListPanel({
   isMobile,
   dispatch,
 }) {
+  const selectedFixtureRoomId =
+    state.rooms.find((room) =>
+      (room.fixtures ?? []).some((fixture) => fixture.id === selectedFixtureId),
+    )?.id ?? null;
+  const targetRoomId =
+    state.activeRoomId ?? selectedFurniture?.roomId ?? selectedFixtureRoomId;
+
+  const fixtureLabel = (type) => {
+    switch (type) {
+      case "door":
+        return "ドア";
+      case "window":
+        return "窓";
+      case "pillar":
+        return "柱";
+      default:
+        return "コンセント";
+    }
+  };
+
   return (
     <>
       <div className="panel__section panel__section--actions">
@@ -57,7 +78,7 @@ export default function ObjectListPanel({
           <button
             className="btn"
             type="button"
-            disabled={!state.activeRoomId && !selectedFurniture?.roomId}
+            disabled={!targetRoomId}
             onClick={() => {
               setSelectionSource("list");
               if (isMobile) {
@@ -66,13 +87,122 @@ export default function ObjectListPanel({
               dispatch({
                 type: "ADD_FURNITURE",
                 payload: selectedTemplateId
-                  ? { templateId: selectedTemplateId }
-                  : {},
+                  ? { templateId: selectedTemplateId, roomId: targetRoomId }
+                  : { roomId: targetRoomId },
               });
             }}
           >
             家具追加
           </button>
+        </div>
+        <div className="fixture-add-row">
+          <div className="fixture-add-row__label">付属品追加</div>
+          <div className="fixture-add-row__buttons">
+            <button
+              className="btn btn--ghost btn--small"
+              type="button"
+              disabled={!targetRoomId}
+              onClick={() => {
+                const room = state.rooms.find(
+                  (entry) => entry.id === targetRoomId,
+                );
+                const size = 700;
+                dispatch({
+                  type: "ADD_FIXTURE",
+                  payload: {
+                    roomId: targetRoomId,
+                    fixture: {
+                      type: "door",
+                      width: size,
+                      height: 200,
+                      x: room ? room.width / 2 - size / 2 : 0,
+                      y: room ? room.height / 2 - 100 : 0,
+                    },
+                  },
+                });
+              }}
+            >
+              ドア
+            </button>
+            <button
+              className="btn btn--ghost btn--small"
+              type="button"
+              disabled={!targetRoomId}
+              onClick={() => {
+                const room = state.rooms.find(
+                  (entry) => entry.id === targetRoomId,
+                );
+                const size = 1400;
+                dispatch({
+                  type: "ADD_FIXTURE",
+                  payload: {
+                    roomId: targetRoomId,
+                    fixture: {
+                      type: "window",
+                      width: size,
+                      height: 160,
+                      x: room ? room.width / 2 - size / 2 : 0,
+                      y: room ? room.height / 2 - 80 : 0,
+                    },
+                  },
+                });
+              }}
+            >
+              窓
+            </button>
+            <button
+              className="btn btn--ghost btn--small"
+              type="button"
+              disabled={!targetRoomId}
+              onClick={() => {
+                const room = state.rooms.find(
+                  (entry) => entry.id === targetRoomId,
+                );
+                const size = 120;
+                dispatch({
+                  type: "ADD_FIXTURE",
+                  payload: {
+                    roomId: targetRoomId,
+                    fixture: {
+                      type: "outlet",
+                      width: size,
+                      height: 80,
+                      x: room ? room.width / 2 - size / 2 : 0,
+                      y: room ? room.height / 2 - 40 : 0,
+                    },
+                  },
+                });
+              }}
+            >
+              コンセント
+            </button>
+            <button
+              className="btn btn--ghost btn--small"
+              type="button"
+              disabled={!targetRoomId}
+              onClick={() => {
+                const room = state.rooms.find(
+                  (entry) => entry.id === targetRoomId,
+                );
+                const size = 320;
+                dispatch({
+                  type: "ADD_FIXTURE",
+                  payload: {
+                    roomId: targetRoomId,
+                    fixture: {
+                      type: "pillar",
+                      width: size,
+                      height: size,
+                      x: room ? room.width / 2 - size / 2 : 0,
+                      y: room ? room.height / 2 - size / 2 : 0,
+                    },
+                  },
+                });
+              }}
+            >
+              柱
+            </button>
+          </div>
         </div>
       </div>
       <div className="panel__section panel__section--list">
@@ -82,6 +212,7 @@ export default function ObjectListPanel({
             const roomFurnitures = state.furnitures.filter(
               (item) => item.roomId === room.id,
             );
+            const roomFixtures = room.fixtures ?? [];
             const isOpen = Boolean(openRooms[room.id]);
             const isEditingRoom =
               editing.type === "room" && editing.id === room.id;
@@ -196,6 +327,49 @@ export default function ObjectListPanel({
                       <li className="object-list__empty">家具なし</li>
                     )}
                   </ul>
+                  <div className="fixture-list">
+                    <div className="fixture-list__title">付属品</div>
+                    {roomFixtures.length === 0 && (
+                      <div className="object-list__empty">付属品なし</div>
+                    )}
+                    {roomFixtures.length > 0 && (
+                      <ul className="fixture-list__items">
+                        {(() => {
+                          const counts = {
+                            door: 0,
+                            window: 0,
+                            outlet: 0,
+                            pillar: 0,
+                          };
+                          return roomFixtures.map((fixture) => {
+                            counts[fixture.type] =
+                              (counts[fixture.type] ?? 0) + 1;
+                            const index = counts[fixture.type];
+                            return (
+                              <li
+                                key={fixture.id}
+                                className="fixture-list__item"
+                              >
+                                <button
+                                  type="button"
+                                  className="fixture-list__button"
+                                  onClick={() => {
+                                    setSelectionSource("list");
+                                    dispatch({
+                                      type: "SELECT_FIXTURE",
+                                      payload: fixture.id,
+                                    });
+                                  }}
+                                >
+                                  {fixtureLabel(fixture.type)} {index}
+                                </button>
+                              </li>
+                            );
+                          });
+                        })()}
+                      </ul>
+                    )}
+                  </div>
                 </details>
               </li>
             );
