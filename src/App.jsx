@@ -6,6 +6,7 @@ import ObjectListPanel from "./components/ObjectListPanel.jsx";
 import EditorPanel from "./components/EditorPanel.jsx";
 import MobileDrawer from "./components/MobileDrawer.jsx";
 import SettingsModal from "./components/SettingsModal.jsx";
+import ExportPreviewModal from "./components/ExportPreviewModal.jsx";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts.js";
 
 export default function App() {
@@ -44,6 +45,7 @@ export default function App() {
   const [viewMode, setViewMode] = useState("all");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState("grid");
+  const [exportOpen, setExportOpen] = useState(false);
   const [gridInput, setGridInput] = useState("");
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const clipboardRef = useRef({ type: null, data: null });
@@ -267,7 +269,19 @@ export default function App() {
           rooms={state.rooms}
           furnitures={state.furnitures}
           dispatch={dispatch}
+          onOpenExportPreview={() => {
+            setSettingsOpen(false);
+            setExportOpen(true);
+          }}
           onClose={() => setSettingsOpen(false)}
+        />
+      )}
+      {exportOpen && (
+        <ExportPreviewModal
+          rooms={state.rooms}
+          furnitures={state.furnitures}
+          gridMM={state.gridMM}
+          onClose={() => setExportOpen(false)}
         />
       )}
     </div>
