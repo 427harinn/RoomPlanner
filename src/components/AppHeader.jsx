@@ -5,7 +5,7 @@ export default function AppHeader({
   canRedo,
   onUndo,
   onRedo,
-  onOpenSettings
+  onOpenSettings,
 }) {
   return (
     <header className="app__header">

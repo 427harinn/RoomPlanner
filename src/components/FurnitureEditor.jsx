@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 
-const mmToM = value => value / 1000;
-const mToMm = value => Number(value) * 1000;
+const mmToM = (value) => value / 1000;
+const mToMm = (value) => Number(value) * 1000;
 
 export default function FurnitureEditor({ furniture, isMobile, dispatch }) {
   const [sizeOpen, setSizeOpen] = useState(!isMobile);
@@ -30,13 +30,13 @@ export default function FurnitureEditor({ furniture, isMobile, dispatch }) {
               名前
               <input
                 value={furniture.name}
-                onChange={e =>
+                onChange={(e) =>
                   dispatch({
                     type: "UPDATE_FURNITURE",
                     payload: {
                       id: furniture.id,
-                      updates: { name: e.target.value }
-                    }
+                      updates: { name: e.target.value },
+                    },
                   })
                 }
               />
@@ -46,13 +46,13 @@ export default function FurnitureEditor({ furniture, isMobile, dispatch }) {
               <input
                 type="color"
                 value={furniture.color}
-                onChange={e =>
+                onChange={(e) =>
                   dispatch({
                     type: "UPDATE_FURNITURE",
                     payload: {
                       id: furniture.id,
-                      updates: { color: e.target.value }
-                    }
+                      updates: { color: e.target.value },
+                    },
                   })
                 }
               />
@@ -61,78 +61,78 @@ export default function FurnitureEditor({ furniture, isMobile, dispatch }) {
           <details
             className="editor-group"
             open={sizeOpen}
-            onToggle={event => setSizeOpen(event.currentTarget.open)}
+            onToggle={(event) => setSizeOpen(event.currentTarget.open)}
           >
             <summary>サイズ</summary>
             <div className="form-grid">
-            <label>
-              横(m)
-              <input
-                type="number"
-                step="0.01"
-                value={widthInput}
-                onChange={e => {
-                  const next = e.target.value;
-                  setWidthInput(next);
-                  if (next === "") return;
-                  dispatch({
-                    type: "UPDATE_FURNITURE",
-                    payload: {
-                      id: furniture.id,
-                      updates: { width: mToMm(next) }
-                    }
-                  });
-                }}
-                onBlur={e => {
-                  if (e.target.value !== "") return;
-                  dispatch({
-                    type: "UPDATE_FURNITURE",
-                    payload: {
-                      id: furniture.id,
-                      updates: { width: 0 }
-                    }
-                  });
-                  setWidthInput("0");
-                }}
-              />
-            </label>
-            <label>
-              縦(m)
-              <input
-                type="number"
-                step="0.01"
-                value={heightInput}
-                onChange={e => {
-                  const next = e.target.value;
-                  setHeightInput(next);
-                  if (next === "") return;
-                  dispatch({
-                    type: "UPDATE_FURNITURE",
-                    payload: {
-                      id: furniture.id,
-                      updates: { height: mToMm(next) }
-                    }
-                  });
-                }}
-                onBlur={e => {
-                  if (e.target.value !== "") return;
-                  dispatch({
-                    type: "UPDATE_FURNITURE",
-                    payload: {
-                      id: furniture.id,
-                      updates: { height: 0 }
-                    }
-                  });
-                  setHeightInput("0");
-                }}
-              />
-            </label>
+              <label>
+                横(m)
+                <input
+                  type="number"
+                  step="0.01"
+                  value={widthInput}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setWidthInput(next);
+                    if (next === "") return;
+                    dispatch({
+                      type: "UPDATE_FURNITURE",
+                      payload: {
+                        id: furniture.id,
+                        updates: { width: mToMm(next) },
+                      },
+                    });
+                  }}
+                  onBlur={(e) => {
+                    if (e.target.value !== "") return;
+                    dispatch({
+                      type: "UPDATE_FURNITURE",
+                      payload: {
+                        id: furniture.id,
+                        updates: { width: 0 },
+                      },
+                    });
+                    setWidthInput("0");
+                  }}
+                />
+              </label>
+              <label>
+                縦(m)
+                <input
+                  type="number"
+                  step="0.01"
+                  value={heightInput}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setHeightInput(next);
+                    if (next === "") return;
+                    dispatch({
+                      type: "UPDATE_FURNITURE",
+                      payload: {
+                        id: furniture.id,
+                        updates: { height: mToMm(next) },
+                      },
+                    });
+                  }}
+                  onBlur={(e) => {
+                    if (e.target.value !== "") return;
+                    dispatch({
+                      type: "UPDATE_FURNITURE",
+                      payload: {
+                        id: furniture.id,
+                        updates: { height: 0 },
+                      },
+                    });
+                    setHeightInput("0");
+                  }}
+                />
+              </label>
             </div>
           </details>
           <details
             className="editor-group"
             open={radiusOpen}
-            onToggle={event => setRadiusOpen(event.currentTarget.open)}
+            onToggle={(event) => setRadiusOpen(event.currentTarget.open)}
           >
             <summary>角丸</summary>
             <div className="form-grid">
@@ -145,15 +145,15 @@ export default function FurnitureEditor({ furniture, isMobile, dispatch }) {
                     max="90"
                     step="1"
                     value={furniture.radius?.tl ?? 0}
-                    onChange={e =>
+                    onChange={(e) =>
                       dispatch({
                         type: "UPDATE_FURNITURE",
                         payload: {
                           id: furniture.id,
                           updates: {
-                            radius: { ...furniture.radius, tl: e.target.value }
-                          }
-                        }
+                            radius: { ...furniture.radius, tl: e.target.value },
+                          },
+                        },
                       })
                     }
                   />
@@ -169,15 +169,15 @@ export default function FurnitureEditor({ furniture, isMobile, dispatch }) {
                     max="90"
                     step="1"
                     value={furniture.radius?.tr ?? 0}
-                    onChange={e =>
+                    onChange={(e) =>
                       dispatch({
                         type: "UPDATE_FURNITURE",
                         payload: {
                           id: furniture.id,
                           updates: {
-                            radius: { ...furniture.radius, tr: e.target.value }
-                          }
-                        }
+                            radius: { ...furniture.radius, tr: e.target.value },
+                          },
+                        },
                       })
                     }
                   />
@@ -193,15 +193,15 @@ export default function FurnitureEditor({ furniture, isMobile, dispatch }) {
                     max="90"
                     step="1"
                     value={furniture.radius?.br ?? 0}
-                    onChange={e =>
+                    onChange={(e) =>
                       dispatch({
                         type: "UPDATE_FURNITURE",
                         payload: {
                           id: furniture.id,
                           updates: {
-                            radius: { ...furniture.radius, br: e.target.value }
-                          }
-                        }
+                            radius: { ...furniture.radius, br: e.target.value },
+                          },
+                        },
                       })
                     }
                   />
@@ -217,15 +217,15 @@ export default function FurnitureEditor({ furniture, isMobile, dispatch }) {
                     max="90"
                     step="1"
                     value={furniture.radius?.bl ?? 0}
-                    onChange={e =>
+                    onChange={(e) =>
                       dispatch({
                         type: "UPDATE_FURNITURE",
                         payload: {
                           id: furniture.id,
                           updates: {
-                            radius: { ...furniture.radius, bl: e.target.value }
-                          }
-                        }
+                            radius: { ...furniture.radius, bl: e.target.value },
+                          },
+                        },
                       })
                     }
                   />

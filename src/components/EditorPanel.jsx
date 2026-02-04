@@ -9,7 +9,7 @@ export default function EditorPanel({
   showRoomEditor,
   showFurnitureEditor,
   dispatch,
-  isMobile
+  isMobile,
 }) {
   if (showRoomEditor) {
     return (

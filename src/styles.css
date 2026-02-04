@@ -55,7 +55,10 @@ body {
 
 .app__columns {
   display: grid;
-  grid-template-columns: minmax(220px, 260px) minmax(0, 1fr) minmax(260px, 320px);
+  grid-template-columns: minmax(220px, 260px) minmax(0, 1fr) minmax(
+      260px,
+      320px
+    );
   gap: 24px;
   align-items: stretch;
 }
@@ -306,7 +309,6 @@ input[type="range"] {
   display: grid;
   gap: 8px;
 }
-
 
 .editor-actions {
   margin-top: 8px;
