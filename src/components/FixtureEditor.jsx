@@ -1,5 +1,13 @@
 import React from "react";
 
+const fixtureTypeLabel = (fixture) => {
+  if (!fixture) return "";
+  if (fixture.type === "door") return "ドア";
+  if (fixture.type === "window") return "窓";
+  if (fixture.type === "pillar") return "柱";
+  return "コンセント";
+};
+
 export default function FixtureEditor({ room, fixture, dispatch }) {
   if (!room || !fixture) return null;
 
@@ -7,16 +15,7 @@ export default function FixtureEditor({ room, fixture, dispatch }) {
     <div className="panel__section">
       <h2>付属品編集</h2>
       <div className="form-grid">
-        <div className="fixture-type-label">
-          種類:{" "}
-          {fixture.type === "door"
-            ? "ドア"
-            : fixture.type === "window"
-              ? "窓"
-              : fixture.type === "pillar"
-                ? "柱"
-                : "コンセント"}
-        </div>
+        <div className="fixture-type-label">種類: {fixtureTypeLabel(fixture)}</div>
         {fixture.type === "pillar" && (
           <label>
             形状
@@ -33,13 +32,13 @@ export default function FixtureEditor({ room, fixture, dispatch }) {
                 })
               }
             >
-              <option value="rect">四角</option>
-              <option value="triangle">三角</option>
+              <option value="rect">四角形</option>
+              <option value="triangle">三角形</option>
             </select>
           </label>
         )}
         <label>
-          回転(°)
+          回転 (°)
           <input
             type="number"
             step="1"
@@ -57,7 +56,7 @@ export default function FixtureEditor({ room, fixture, dispatch }) {
           />
         </label>
         <label>
-          幅(mm)
+          幅 (mm)
           <input
             type="number"
             value={fixture.width}
@@ -74,7 +73,7 @@ export default function FixtureEditor({ room, fixture, dispatch }) {
           />
         </label>
         <label>
-          高さ(mm)
+          高さ (mm)
           <input
             type="number"
             value={fixture.height}
@@ -91,7 +90,7 @@ export default function FixtureEditor({ room, fixture, dispatch }) {
           />
         </label>
         <label>
-          X(mm)
+          X (mm)
           <input
             type="number"
             value={fixture.x}
@@ -108,7 +107,7 @@ export default function FixtureEditor({ room, fixture, dispatch }) {
           />
         </label>
         <label>
-          Y(mm)
+          Y (mm)
           <input
             type="number"
             value={fixture.y}
@@ -119,6 +118,23 @@ export default function FixtureEditor({ room, fixture, dispatch }) {
                   roomId: room.id,
                   fixtureId: fixture.id,
                   updates: { y: event.target.value },
+                },
+              })
+            }
+          />
+        </label>
+        <label className="form-grid__full">
+          メモ
+          <textarea
+            rows={3}
+            value={fixture.memo ?? ""}
+            onChange={(event) =>
+              dispatch({
+                type: "UPDATE_FIXTURE",
+                payload: {
+                  roomId: room.id,
+                  fixtureId: fixture.id,
+                  updates: { memo: event.target.value },
                 },
               })
             }
