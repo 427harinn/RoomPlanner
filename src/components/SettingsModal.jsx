@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 
 const defaultTemplateForm = {
   id: "",
@@ -20,6 +20,7 @@ export default function SettingsModal({
   rooms,
   furnitures,
   dispatch,
+  onOpenExportPreview,
   onClose,
 }) {
   const [templateForm, setTemplateForm] = React.useState(defaultTemplateForm);
@@ -109,7 +110,7 @@ export default function SettingsModal({
 
   const handleTemplateSave = () => {
     const payload = {
-      name: templateForm.name.trim() || "家具",
+      name: templateForm.name.trim() || "テンプレ",
       width: Number(templateForm.width) || 0,
       height: Number(templateForm.height) || 0,
       color: templateForm.color,
@@ -211,9 +212,9 @@ export default function SettingsModal({
               <h3>Templates</h3>
               <div className="form-grid">
                 <label className="template-select template-select--modal">
-                  テンプレ選択
+                  テンプレート選択
                   <select value={templateForm.id} onChange={handleTemplateSelect}>
-                    <option value="">＋新規作成</option>
+                    <option value="">未選択</option>
                     {templates.map((template) => (
                       <option key={template.id} value={template.id}>
                         {template.name}
@@ -224,7 +225,7 @@ export default function SettingsModal({
               </div>
               <div className="form-grid">
                 <label>
-                  名前
+                  名称
                   <input
                     value={templateForm.name}
                     onChange={(event) =>
@@ -236,7 +237,7 @@ export default function SettingsModal({
                   />
                 </label>
                 <label>
-                  幅(mm)
+                  幅 (mm)
                   <input
                     type="number"
                     value={templateForm.width}
@@ -249,7 +250,7 @@ export default function SettingsModal({
                   />
                 </label>
                 <label>
-                  高さ(mm)
+                  高さ (mm)
                   <input
                     type="number"
                     value={templateForm.height}
@@ -292,7 +293,7 @@ export default function SettingsModal({
                   </select>
                 </label>
                 <label>
-                  角丸(左上°)
+                  角丸 (左上)
                   <input
                     type="number"
                     value={templateForm.radius.tl}
@@ -305,7 +306,7 @@ export default function SettingsModal({
                   />
                 </label>
                 <label>
-                  角丸(右上°)
+                  角丸 (右上)
                   <input
                     type="number"
                     value={templateForm.radius.tr}
@@ -318,7 +319,7 @@ export default function SettingsModal({
                   />
                 </label>
                 <label>
-                  角丸(右下°)
+                  角丸 (右下)
                   <input
                     type="number"
                     value={templateForm.radius.br}
@@ -331,7 +332,7 @@ export default function SettingsModal({
                   />
                 </label>
                 <label>
-                  角丸(左下°)
+                  角丸 (左下)
                   <input
                     type="number"
                     value={templateForm.radius.bl}
@@ -346,7 +347,7 @@ export default function SettingsModal({
               </div>
               <div className="actions">
                 <button className="btn" type="button" onClick={handleTemplateSave}>
-                  {templateForm.id ? "更新" : "追加"}
+                  {templateForm.id ? "保存" : "追加"}
                 </button>
                 {templateForm.id && (
                   <button
@@ -374,6 +375,13 @@ export default function SettingsModal({
                 <button className="btn" type="button" onClick={handleExport}>
                   Export JSON
                 </button>
+                <button
+                  className="btn btn--ghost"
+                  type="button"
+                  onClick={onOpenExportPreview}
+                >
+                  A4プレビュー
+                </button>
                 <input type="file" accept=".json" onChange={handleImport} />
               </div>
             </div>
@@ -383,3 +391,5 @@ export default function SettingsModal({
     </div>
   );
 }
+
+
