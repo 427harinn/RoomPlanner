@@ -74,6 +74,7 @@ export default function RoomCanvas({
     dragRef.current.active && dragRef.current.kind === "room" && dragRef.current.scale
       ? dragRef.current.scale
       : liveScale;
+  const CANVAS_PADDING_MM = 20000;
   const expandBounds = (base, next) => {
     if (!base) return next;
     if (!next) return base;
@@ -91,10 +92,11 @@ export default function RoomCanvas({
     dragRef.current.active && dragRef.current.kind === "room" && dragRef.current.bounds
       ? expandBounds(dragRef.current.bounds, liveBounds)
       : liveBounds;
-  const width = bounds.width * scale;
-  const height = bounds.height * scale;
-  const offsetX = CONFIG.margin - bounds.minX * scale;
-  const offsetY = CONFIG.margin - bounds.minY * scale;
+  const padPx = CANVAS_PADDING_MM * scale;
+  const width = bounds.width * scale + padPx * 2;
+  const height = bounds.height * scale + padPx * 2;
+  const offsetX = CONFIG.margin + padPx - bounds.minX * scale;
+  const offsetY = CONFIG.margin + padPx - bounds.minY * scale;
 
   const snapRoomPosition = useCallback(
     room => {
@@ -398,6 +400,12 @@ export default function RoomCanvas({
       bounds: null,
       lastRoomPos: null
     };
+    if (scrollRef.current.rafId) {
+      window.cancelAnimationFrame(scrollRef.current.rafId);
+      scrollRef.current.rafId = null;
+    }
+    scrollRef.current.dx = 0;
+    scrollRef.current.dy = 0;
     setIsDraggingRoom(false);
     const { onMouseMove: moveHandler, onMouseUp: upHandler } =
       handlerRef.current;
@@ -505,6 +513,14 @@ export default function RoomCanvas({
       stopDragging();
     };
   }, [stopDragging]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    if (dragRef.current.active) return;
+    container.scrollLeft = padPx;
+    container.scrollTop = padPx;
+  }, [padPx, bounds.minX, bounds.minY, bounds.width, bounds.height]);
 
   const roomGrid = visibleRooms.flatMap(room => {
     const lines = [];
