@@ -2,8 +2,8 @@ import React, { useEffect, useReducer, useRef, useState } from "react";
 import { reducer, initialState } from "./state/reducer.js";
 import RoomEditor from "./components/RoomEditor.jsx";
 import FurnitureEditor from "./components/FurnitureEditor.jsx";
-import ImportExport from "./components/ImportExport.jsx";
 import RoomCanvas from "./components/RoomCanvas.jsx";
+import SettingsModal from "./components/SettingsModal.jsx";
 
 const initHistory = () => ({
   past: [],
@@ -101,6 +101,9 @@ export default function App() {
     return window.matchMedia("(max-width: 900px)").matches;
   });
   const [viewMode, setViewMode] = useState("all");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState("grid");
+  const [gridInput, setGridInput] = useState("");
   const clipboardRef = useRef({ type: null, data: null });
   const selectedRoomId =
     state.activeRoomId ??
@@ -152,6 +155,9 @@ export default function App() {
     latestRoomRef.current = activeRoom;
     latestFurnitureRef.current = selectedFurniture;
   }, [state, activeRoom, selectedFurniture]);
+  useEffect(() => {
+    setGridInput(Number((state.gridMM / 1000).toFixed(5)).toString());
+  }, [state.gridMM]);
 
   useEffect(() => {
     if (!selectedRoomId) return;
@@ -310,7 +316,7 @@ export default function App() {
         <button
           className="btn"
           type="button"
-          disabled={!state.activeRoomId}
+          disabled={!state.activeRoomId && !selectedFurniture?.roomId}
           onClick={() => {
             setSelectionSource("list");
             if (isMobile) {
@@ -319,7 +325,7 @@ export default function App() {
             dispatch({ type: "ADD_FURNITURE", payload: {} });
           }}
         >
-          家具を追加
+          家具追加
         </button>
       </div>
       <div className="panel__section panel__section--list">
@@ -466,7 +472,7 @@ export default function App() {
                   }`}
                 >
                   <span className="object-list__toggle" aria-hidden="true" />
-                  未割り当て
+                  未割当
                 </summary>
                 <ul className="object-list__children">
                   {state.furnitures
@@ -579,7 +585,13 @@ export default function App() {
           >
             進む
           </button>
-          <ImportExport state={state} dispatch={dispatch} />
+          <button
+            className="btn btn--ghost btn--small"
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+          >
+            Settings
+          </button>
         </div>
       </header>
 
@@ -606,7 +618,7 @@ export default function App() {
         <section className="panel panel--editor">{editorContentDesktop}</section>
       </div>
 
-      <div className="mobile-drawer" aria-label="モバイルメニュー">
+      <div className="mobile-drawer" aria-label="繝｢繝舌う繝ｫ繝｡繝九Η繝ｼ">
         <div className="mobile-drawer__tabs">
           <button
             type="button"
@@ -631,6 +643,21 @@ export default function App() {
           {mobileTab === "list" ? listContent : editorContentMobile}
         </div>
       </div>
+      {settingsOpen && (
+        <SettingsModal
+          settingsTab={settingsTab}
+          setSettingsTab={setSettingsTab}
+          gridInput={gridInput}
+          setGridInput={setGridInput}
+          gridMM={state.gridMM}
+          rooms={state.rooms}
+          furnitures={state.furnitures}
+          dispatch={dispatch}
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
     </div>
   );
 }
+
+
