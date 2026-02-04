@@ -64,6 +64,8 @@ export default function App() {
   const latestStateRef = useRef(state);
   const latestRoomRef = useRef(activeRoom);
   const latestFurnitureRef = useRef(selectedFurniture);
+  const latestFixtureRef = useRef(selectedFixture);
+  const latestFixtureRoomRef = useRef(selectedFixtureRoom);
 
   const startEditing = (type, id, value) => {
     setEditing({ type, id, value });
@@ -95,7 +97,9 @@ export default function App() {
     latestStateRef.current = state;
     latestRoomRef.current = activeRoom;
     latestFurnitureRef.current = selectedFurniture;
-  }, [state, activeRoom, selectedFurniture]);
+    latestFixtureRef.current = selectedFixture;
+    latestFixtureRoomRef.current = selectedFixtureRoom;
+  }, [state, activeRoom, selectedFurniture, selectedFixture, selectedFixtureRoom]);
 
   useEffect(() => {
     setGridInput(Number((state.gridMM / 1000).toFixed(5)).toString());
@@ -138,6 +142,8 @@ export default function App() {
     stateRef: latestStateRef,
     roomRef: latestRoomRef,
     furnitureRef: latestFurnitureRef,
+    fixtureRef: latestFixtureRef,
+    fixtureRoomRef: latestFixtureRoomRef,
     clipboardRef,
     onDispatch: dispatch,
     onSetSelectionSource: setSelectionSource,

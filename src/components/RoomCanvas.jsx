@@ -1209,6 +1209,7 @@ export default function RoomCanvas({
             const handlePointerDown = (event) => {
               event.stopPropagation();
               event.preventDefault();
+              dispatch({ type: "BEGIN_DRAG" });
               const svgRect = svgRef.current?.getBoundingClientRect();
               const aabbRect = getFixtureAabbRect(room, fixture);
               const ax = roomX + aabbRect.x * scale;
@@ -1500,6 +1501,7 @@ export default function RoomCanvas({
                   onPointerDown={(event) => {
                     event.stopPropagation();
                     event.preventDefault();
+                    dispatch({ type: "BEGIN_DRAG" });
                     dragRef.current = {
                       active: true,
                       kind: "vertex",
@@ -1553,6 +1555,7 @@ export default function RoomCanvas({
               onPointerDown={(event) => {
                 event.stopPropagation();
                 event.preventDefault();
+                dispatch({ type: "BEGIN_DRAG" });
                 dragRef.current = {
                   active: true,
                   kind: "resize",
