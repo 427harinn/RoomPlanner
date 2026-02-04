@@ -303,9 +303,14 @@ export function reducer(state, action) {
       };
     }
     case "ADD_FURNITURE": {
+      const selected = state.furnitures.find(
+        item => item.id === state.selectedId
+      );
+      const targetRoomId = state.activeRoomId ?? selected?.roomId ?? null;
+      if (!targetRoomId) return state;
       const furniture = createFurniture({
         ...action.payload,
-        roomId: state.activeRoomId
+        roomId: targetRoomId
       });
       return {
         ...state,
