@@ -9,9 +9,11 @@ export default function useKeyboardShortcuts({
   clipboardRef,
   onDispatch,
   onSetSelectionSource,
+  isBlocked,
 }) {
   useEffect(() => {
     const onKeyDown = (event) => {
+      if (isBlocked) return;
       const target = event.target;
       const tagName = target?.tagName?.toLowerCase();
       const inputType = target?.type?.toLowerCase();
@@ -208,5 +210,6 @@ export default function useKeyboardShortcuts({
     furnitureRef,
     fixtureRef,
     fixtureRoomRef,
+    isBlocked,
   ]);
 }

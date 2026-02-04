@@ -297,10 +297,18 @@ const normalizeLayout = (data) => {
   };
 };
 
-const getDisplaySize = (furniture) =>
-  furniture.rotation === 90
-    ? { w: toNumber(furniture.height), h: toNumber(furniture.width) }
-    : { w: toNumber(furniture.width), h: toNumber(furniture.height) };
+const getDisplaySize = (furniture) => {
+  const rotation = Number(furniture.rotation) || 0;
+  const rad = (rotation * Math.PI) / 180;
+  const cos = Math.abs(Math.cos(rad));
+  const sin = Math.abs(Math.sin(rad));
+  const w = toNumber(furniture.width);
+  const h = toNumber(furniture.height);
+  return {
+    w: w * cos + h * sin,
+    h: w * sin + h * cos,
+  };
+};
 
 const cloneFurniture = (source, roomId) => ({
   id: createId(),
@@ -642,12 +650,18 @@ export function reducer(state, action) {
           : currentRoom
             ? currentRoom.y + toNumber(y)
             : toNumber(y);
+      const baseW = toNumber(target.width);
+      const baseH = toNumber(target.height);
+      const centerX = absoluteX + baseW / 2;
+      const centerY = absoluteY + baseH / 2;
+      const aabbX = centerX - w / 2;
+      const aabbY = centerY - h / 2;
       const nextRoom = state.rooms.find(
         (room) =>
-          absoluteX >= room.x &&
-          absoluteY >= room.y &&
-          absoluteX + w <= room.x + room.width &&
-          absoluteY + h <= room.y + room.height,
+          aabbX >= room.x &&
+          aabbY >= room.y &&
+          aabbX + w <= room.x + room.width &&
+          aabbY + h <= room.y + room.height,
       );
 
       const nextRoomId = nextRoom ? nextRoom.id : null;
