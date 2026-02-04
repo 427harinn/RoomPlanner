@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 const mmToM = (value) => value / 1000;
 const mToMm = (value) => Number(value) * 1000;
@@ -9,6 +9,17 @@ export default function FurnitureEditor({ furniture, isMobile, dispatch }) {
   const [widthInput, setWidthInput] = useState("");
   const [heightInput, setHeightInput] = useState("");
   const [rotationInput, setRotationInput] = useState("");
+  const editingRef = useRef(false);
+  const beginEdit = () => {
+    if (editingRef.current) return;
+    editingRef.current = true;
+    dispatch({ type: "BEGIN_DRAG" });
+  };
+  const endEdit = () => {
+    if (!editingRef.current) return;
+    editingRef.current = false;
+    dispatch({ type: "END_DRAG" });
+  };
 
   useEffect(() => {
     setSizeOpen(!isMobile);
@@ -21,6 +32,16 @@ export default function FurnitureEditor({ furniture, isMobile, dispatch }) {
     setHeightInput(String(mmToM(furniture.height)));
     setRotationInput(String(furniture.rotation ?? 0));
   }, [furniture]);
+
+  useEffect(() => {
+    const handlePointerUp = () => endEdit();
+    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointercancel", handlePointerUp);
+    return () => {
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerUp);
+    };
+  }, []);
 
   if (!furniture) {
     return (
@@ -55,6 +76,8 @@ export default function FurnitureEditor({ furniture, isMobile, dispatch }) {
           <input
             type="color"
             value={furniture.color}
+            onFocus={beginEdit}
+            onBlur={endEdit}
             onChange={(e) =>
               dispatch({
                 type: "UPDATE_FURNITURE",
@@ -80,6 +103,7 @@ export default function FurnitureEditor({ furniture, isMobile, dispatch }) {
               type="number"
               step="0.01"
               value={widthInput}
+              onFocus={beginEdit}
               onChange={(e) => {
                 const next = e.target.value;
                 setWidthInput(next);
@@ -93,15 +117,17 @@ export default function FurnitureEditor({ furniture, isMobile, dispatch }) {
                 });
               }}
               onBlur={(e) => {
-                if (e.target.value !== "") return;
-                dispatch({
-                  type: "UPDATE_FURNITURE",
-                  payload: {
-                    id: furniture.id,
-                    updates: { width: 0 },
-                  },
-                });
-                setWidthInput("0");
+                if (e.target.value === "") {
+                  dispatch({
+                    type: "UPDATE_FURNITURE",
+                    payload: {
+                      id: furniture.id,
+                      updates: { width: 0 },
+                    },
+                  });
+                  setWidthInput("0");
+                }
+                endEdit();
               }}
             />
           </label>
@@ -111,6 +137,7 @@ export default function FurnitureEditor({ furniture, isMobile, dispatch }) {
               type="number"
               step="0.01"
               value={heightInput}
+              onFocus={beginEdit}
               onChange={(e) => {
                 const next = e.target.value;
                 setHeightInput(next);
@@ -124,15 +151,17 @@ export default function FurnitureEditor({ furniture, isMobile, dispatch }) {
                 });
               }}
               onBlur={(e) => {
-                if (e.target.value !== "") return;
-                dispatch({
-                  type: "UPDATE_FURNITURE",
-                  payload: {
-                    id: furniture.id,
-                    updates: { height: 0 },
-                  },
-                });
-                setHeightInput("0");
+                if (e.target.value === "") {
+                  dispatch({
+                    type: "UPDATE_FURNITURE",
+                    payload: {
+                      id: furniture.id,
+                      updates: { height: 0 },
+                    },
+                  });
+                  setHeightInput("0");
+                }
+                endEdit();
               }}
             />
           </label>
@@ -142,6 +171,8 @@ export default function FurnitureEditor({ furniture, isMobile, dispatch }) {
               type="number"
               step="1"
               value={rotationInput}
+              onFocus={beginEdit}
+              onBlur={endEdit}
               onChange={(e) => {
                 const next = e.target.value;
                 setRotationInput(next);
@@ -174,6 +205,9 @@ export default function FurnitureEditor({ furniture, isMobile, dispatch }) {
                 max="90"
                 step="1"
                 value={furniture.radius?.tl ?? 0}
+                onPointerDown={beginEdit}
+                onPointerUp={endEdit}
+                onBlur={endEdit}
                 onChange={(e) =>
                   dispatch({
                     type: "UPDATE_FURNITURE",
@@ -198,6 +232,9 @@ export default function FurnitureEditor({ furniture, isMobile, dispatch }) {
                 max="90"
                 step="1"
                 value={furniture.radius?.tr ?? 0}
+                onPointerDown={beginEdit}
+                onPointerUp={endEdit}
+                onBlur={endEdit}
                 onChange={(e) =>
                   dispatch({
                     type: "UPDATE_FURNITURE",
@@ -222,6 +259,9 @@ export default function FurnitureEditor({ furniture, isMobile, dispatch }) {
                 max="90"
                 step="1"
                 value={furniture.radius?.br ?? 0}
+                onPointerDown={beginEdit}
+                onPointerUp={endEdit}
+                onBlur={endEdit}
                 onChange={(e) =>
                   dispatch({
                     type: "UPDATE_FURNITURE",
@@ -246,6 +286,9 @@ export default function FurnitureEditor({ furniture, isMobile, dispatch }) {
                 max="90"
                 step="1"
                 value={furniture.radius?.bl ?? 0}
+                onPointerDown={beginEdit}
+                onPointerUp={endEdit}
+                onBlur={endEdit}
                 onChange={(e) =>
                   dispatch({
                     type: "UPDATE_FURNITURE",

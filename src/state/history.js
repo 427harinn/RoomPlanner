@@ -7,10 +7,18 @@ export const initHistory = () => ({
   isDragging: false,
 });
 
-const nonRecordableActions = new Set(["SELECT_FURNITURE", "SET_ACTIVE_ROOM"]);
+const nonRecordableActions = new Set([
+  "SELECT_FURNITURE",
+  "SELECT_FIXTURE",
+  "SET_ACTIVE_ROOM",
+]);
 
 const isMoveAction = (action) =>
-  action.type === "MOVE_ROOM" || action.type === "MOVE_FURNITURE";
+  action.type === "MOVE_ROOM" ||
+  action.type === "MOVE_FURNITURE" ||
+  action.type === "UPDATE_FIXTURE" ||
+  action.type === "UPDATE_FURNITURE" ||
+  action.type === "UPDATE_ROOM";
 
 export const historyReducer = (state, action) => {
   switch (action.type) {
