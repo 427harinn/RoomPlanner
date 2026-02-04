@@ -450,9 +450,71 @@ input[type="range"] {
     min-height: 0;
     padding-bottom: 12px;
   }
-
   .mobile-drawer__content .panel__section {
     padding-left: 4px;
     padding-right: 4px;
   }
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  display: grid;
+  place-items: center;
+  z-index: 20;
+  padding: 24px;
+}
+
+.modal {
+  width: min(720px, 100%);
+  max-height: min(80vh, 760px);
+  overflow: auto;
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.25);
+}
+
+.modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.modal__header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.modal__tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.modal__tab {
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #0f172a;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.modal__tab.is-active {
+  background: #0f172a;
+  color: #fff;
+  border-color: #0f172a;
+}
+
+.modal__body .panel__section {
+  padding-top: 0;
+  border-top: none;
 }
