@@ -38,40 +38,42 @@ export default function ObjectListPanel({
         >
           部屋を追加
         </button>
-        <label>
-          テンプレ
-          <select
-            value={selectedTemplateId}
-            onChange={(event) => setSelectedTemplateId(event.target.value)}
-            disabled={templates.length === 0}
+        <div className="furniture-add-row">
+          <label>
+            家具テンプレ
+            <select
+              value={selectedTemplateId}
+              onChange={(event) => setSelectedTemplateId(event.target.value)}
+              disabled={templates.length === 0}
+            >
+              <option value="">通常</option>
+              {templates.map((template) => (
+                <option key={template.id} value={template.id}>
+                  {template.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            className="btn"
+            type="button"
+            disabled={!state.activeRoomId && !selectedFurniture?.roomId}
+            onClick={() => {
+              setSelectionSource("list");
+              if (isMobile) {
+                setMobileTab("editor");
+              }
+              dispatch({
+                type: "ADD_FURNITURE",
+                payload: selectedTemplateId
+                  ? { templateId: selectedTemplateId }
+                  : {},
+              });
+            }}
           >
-            <option value="">通常</option>
-            {templates.map((template) => (
-              <option key={template.id} value={template.id}>
-                {template.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button
-          className="btn"
-          type="button"
-          disabled={!state.activeRoomId && !selectedFurniture?.roomId}
-          onClick={() => {
-            setSelectionSource("list");
-            if (isMobile) {
-              setMobileTab("editor");
-            }
-            dispatch({
-              type: "ADD_FURNITURE",
-              payload: selectedTemplateId
-                ? { templateId: selectedTemplateId }
-                : {},
-            });
-          }}
-        >
-          家具追加
-        </button>
+            家具追加
+          </button>
+        </div>
       </div>
       <div className="panel__section panel__section--list">
         <h2>部屋 / 家具</h2>

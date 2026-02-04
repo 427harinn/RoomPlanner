@@ -91,6 +91,15 @@ body {
   gap: 8px;
 }
 
+.furniture-add-row {
+  display: grid;
+  gap: 8px;
+}
+
+.furniture-add-row .btn {
+  margin-top: 0;
+}
+
 .panel--editor {
   overflow: auto;
 }
