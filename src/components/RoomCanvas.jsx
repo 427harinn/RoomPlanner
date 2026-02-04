@@ -36,8 +36,10 @@ export default function RoomCanvas({
     offsetX: 0,
     offsetY: 0,
     scale: null,
-    bounds: null
+    bounds: null,
+    lastRoomPos: null
   });
+  const scrollRef = useRef({ rafId: null, dx: 0, dy: 0 });
   const handlerRef = useRef({ onMouseMove: null, onMouseUp: null });
   const handleGridDoubleClick = useCallback(() => {
     const currentMeters = Number((gridMM / 1000).toFixed(5)).toString();
@@ -72,9 +74,22 @@ export default function RoomCanvas({
     dragRef.current.active && dragRef.current.kind === "room" && dragRef.current.scale
       ? dragRef.current.scale
       : liveScale;
+  const expandBounds = (base, next) => {
+    if (!base) return next;
+    if (!next) return base;
+    const baseMaxX = base.minX + base.width;
+    const baseMaxY = base.minY + base.height;
+    const nextMaxX = next.minX + next.width;
+    const nextMaxY = next.minY + next.height;
+    const minX = Math.min(base.minX, next.minX);
+    const minY = Math.min(base.minY, next.minY);
+    const maxX = Math.max(baseMaxX, nextMaxX);
+    const maxY = Math.max(baseMaxY, nextMaxY);
+    return { minX, minY, width: maxX - minX, height: maxY - minY };
+  };
   const bounds =
     dragRef.current.active && dragRef.current.kind === "room" && dragRef.current.bounds
-      ? dragRef.current.bounds
+      ? expandBounds(dragRef.current.bounds, liveBounds)
       : liveBounds;
   const width = bounds.width * scale;
   const height = bounds.height * scale;
@@ -260,10 +275,82 @@ export default function RoomCanvas({
           (event.clientY - rect.top - offsetY - dragOffsetY) / scale +
           origin.y;
         const snapped = snapRoomPosition({ ...room, x, y });
+        const lastRoomPos = dragRef.current.lastRoomPos ?? {
+          x: snapped.x,
+          y: snapped.y
+        };
+        const deltaRoomX = snapped.x - lastRoomPos.x;
+        const deltaRoomY = snapped.y - lastRoomPos.y;
+        dragRef.current.lastRoomPos = { x: snapped.x, y: snapped.y };
         dispatch({
           type: "MOVE_ROOM",
           payload: { id, x: snapped.x, y: snapped.y }
         });
+        const container = containerRef.current;
+        if (container) {
+          const roomX = offsetX + (snapped.x - origin.x) * scale;
+          const roomY = offsetY + (snapped.y - origin.y) * scale;
+          const roomW = room.width * scale;
+          const roomH = room.height * scale;
+          const viewLeft = container.scrollLeft;
+          const viewTop = container.scrollTop;
+          const viewRight = viewLeft + container.clientWidth;
+          const viewBottom = viewTop + container.clientHeight;
+          const targetLeft = roomX;
+          const targetTop = roomY;
+          const targetRight = roomX + roomW;
+          const targetBottom = roomY + roomH;
+
+          let dx = 0;
+          let dy = 0;
+          if (deltaRoomX < 0 && targetLeft < viewLeft) {
+            dx = targetLeft - viewLeft;
+          } else if (deltaRoomX > 0 && targetRight > viewRight) {
+            dx = targetRight - viewRight;
+          }
+
+          if (deltaRoomY < 0 && targetTop < viewTop) {
+            dy = targetTop - viewTop;
+          } else if (deltaRoomY > 0 && targetBottom > viewBottom) {
+            dy = targetBottom - viewBottom;
+          }
+
+          if (dx !== 0 || dy !== 0) {
+            scrollRef.current.dx = dx;
+            scrollRef.current.dy = dy;
+            if (!scrollRef.current.rafId) {
+              const step = () => {
+                const maxStep = 12;
+                const ease = 0.18;
+                const nextDx = scrollRef.current.dx;
+                const nextDy = scrollRef.current.dy;
+                const moveX = Math.max(
+                  -maxStep,
+                  Math.min(maxStep, nextDx * ease)
+                );
+                const moveY = Math.max(
+                  -maxStep,
+                  Math.min(maxStep, nextDy * ease)
+                );
+                container.scrollLeft += moveX;
+                container.scrollTop += moveY;
+                scrollRef.current.dx = nextDx - moveX;
+                scrollRef.current.dy = nextDy - moveY;
+                if (
+                  Math.abs(scrollRef.current.dx) < 0.5 &&
+                  Math.abs(scrollRef.current.dy) < 0.5
+                ) {
+                  scrollRef.current.dx = 0;
+                  scrollRef.current.dy = 0;
+                  scrollRef.current.rafId = null;
+                  return;
+                }
+                scrollRef.current.rafId = window.requestAnimationFrame(step);
+              };
+              scrollRef.current.rafId = window.requestAnimationFrame(step);
+            }
+          }
+        }
         return;
       }
 
@@ -308,7 +395,8 @@ export default function RoomCanvas({
       offsetX: 0,
       offsetY: 0,
       scale: null,
-      bounds: null
+      bounds: null,
+      lastRoomPos: null
     };
     setIsDraggingRoom(false);
     const { onMouseMove: moveHandler, onMouseUp: upHandler } =
@@ -383,7 +471,8 @@ export default function RoomCanvas({
       offsetY:
         event.clientY - rect.top - (offsetY + (room.y - origin.y) * scale),
       scale: dragScale,
-      bounds
+      bounds,
+      lastRoomPos: { x: room.x, y: room.y }
     };
     setIsDraggingRoom(true);
 
