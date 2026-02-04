@@ -7,12 +7,23 @@ export default function RoomEditor({ room, roomsCount, isMobile, dispatch }) {
   const [sizeOpen, setSizeOpen] = useState(!isMobile);
   const [positionOpen, setPositionOpen] = useState(!isMobile);
   const [radiusOpen, setRadiusOpen] = useState(!isMobile);
+  const [widthInput, setWidthInput] = useState("");
+  const [heightInput, setHeightInput] = useState("");
+  const [xInput, setXInput] = useState("");
+  const [yInput, setYInput] = useState("");
 
   useEffect(() => {
     setSizeOpen(!isMobile);
     setPositionOpen(!isMobile);
     setRadiusOpen(!isMobile);
   }, [isMobile]);
+  useEffect(() => {
+    if (!room) return;
+    setWidthInput(String(mmToM(room.width)));
+    setHeightInput(String(mmToM(room.height)));
+    setXInput(String(mmToM(room.x)));
+    setYInput(String(mmToM(room.y)));
+  }, [room]);
   if (!room) {
     return (
       <div className="panel__section">
@@ -51,16 +62,30 @@ export default function RoomEditor({ room, roomsCount, isMobile, dispatch }) {
             <input
               type="number"
               step="0.01"
-              value={mmToM(room.width)}
-              onChange={e =>
+              value={widthInput}
+              onChange={e => {
+                const next = e.target.value;
+                setWidthInput(next);
+                if (next === "") return;
                 dispatch({
                   type: "UPDATE_ROOM",
                   payload: {
                     id: room.id,
-                    updates: { width: mToMm(e.target.value) }
+                    updates: { width: mToMm(next) }
                   }
-                })
-              }
+                });
+              }}
+              onBlur={e => {
+                if (e.target.value !== "") return;
+                dispatch({
+                  type: "UPDATE_ROOM",
+                  payload: {
+                    id: room.id,
+                    updates: { width: 0 }
+                  }
+                });
+                setWidthInput("0");
+              }}
             />
           </label>
           <label>
@@ -68,16 +93,30 @@ export default function RoomEditor({ room, roomsCount, isMobile, dispatch }) {
             <input
               type="number"
               step="0.01"
-              value={mmToM(room.height)}
-              onChange={e =>
+              value={heightInput}
+              onChange={e => {
+                const next = e.target.value;
+                setHeightInput(next);
+                if (next === "") return;
                 dispatch({
                   type: "UPDATE_ROOM",
                   payload: {
                     id: room.id,
-                    updates: { height: mToMm(e.target.value) }
+                    updates: { height: mToMm(next) }
                   }
-                })
-              }
+                });
+              }}
+              onBlur={e => {
+                if (e.target.value !== "") return;
+                dispatch({
+                  type: "UPDATE_ROOM",
+                  payload: {
+                    id: room.id,
+                    updates: { height: 0 }
+                  }
+                });
+                setHeightInput("0");
+              }}
             />
           </label>
         </div>
@@ -94,16 +133,30 @@ export default function RoomEditor({ room, roomsCount, isMobile, dispatch }) {
             <input
               type="number"
               step="0.01"
-              value={mmToM(room.x)}
-              onChange={e =>
+              value={xInput}
+              onChange={e => {
+                const next = e.target.value;
+                setXInput(next);
+                if (next === "") return;
                 dispatch({
                   type: "UPDATE_ROOM",
                   payload: {
                     id: room.id,
-                    updates: { x: mToMm(e.target.value) }
+                    updates: { x: mToMm(next) }
                   }
-                })
-              }
+                });
+              }}
+              onBlur={e => {
+                if (e.target.value !== "") return;
+                dispatch({
+                  type: "UPDATE_ROOM",
+                  payload: {
+                    id: room.id,
+                    updates: { x: 0 }
+                  }
+                });
+                setXInput("0");
+              }}
             />
           </label>
           <label>
@@ -111,16 +164,30 @@ export default function RoomEditor({ room, roomsCount, isMobile, dispatch }) {
             <input
               type="number"
               step="0.01"
-              value={mmToM(room.y)}
-              onChange={e =>
+              value={yInput}
+              onChange={e => {
+                const next = e.target.value;
+                setYInput(next);
+                if (next === "") return;
                 dispatch({
                   type: "UPDATE_ROOM",
                   payload: {
                     id: room.id,
-                    updates: { y: mToMm(e.target.value) }
+                    updates: { y: mToMm(next) }
                   }
-                })
-              }
+                });
+              }}
+              onBlur={e => {
+                if (e.target.value !== "") return;
+                dispatch({
+                  type: "UPDATE_ROOM",
+                  payload: {
+                    id: room.id,
+                    updates: { y: 0 }
+                  }
+                });
+                setYInput("0");
+              }}
             />
           </label>
         </div>
