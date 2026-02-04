@@ -6,11 +6,18 @@ const mToMm = value => Number(value) * 1000;
 export default function FurnitureEditor({ furniture, isMobile, dispatch }) {
   const [sizeOpen, setSizeOpen] = useState(!isMobile);
   const [radiusOpen, setRadiusOpen] = useState(!isMobile);
+  const [widthInput, setWidthInput] = useState("");
+  const [heightInput, setHeightInput] = useState("");
 
   useEffect(() => {
     setSizeOpen(!isMobile);
     setRadiusOpen(!isMobile);
   }, [isMobile]);
+  useEffect(() => {
+    if (!furniture) return;
+    setWidthInput(String(mmToM(furniture.width)));
+    setHeightInput(String(mmToM(furniture.height)));
+  }, [furniture]);
   return (
     <div className="panel__section">
       <h2>選択中の家具を編集</h2>
@@ -63,16 +70,30 @@ export default function FurnitureEditor({ furniture, isMobile, dispatch }) {
               <input
                 type="number"
                 step="0.01"
-                value={mmToM(furniture.width)}
-                onChange={e =>
+                value={widthInput}
+                onChange={e => {
+                  const next = e.target.value;
+                  setWidthInput(next);
+                  if (next === "") return;
                   dispatch({
                     type: "UPDATE_FURNITURE",
                     payload: {
                       id: furniture.id,
-                      updates: { width: mToMm(e.target.value) }
+                      updates: { width: mToMm(next) }
                     }
-                  })
-                }
+                  });
+                }}
+                onBlur={e => {
+                  if (e.target.value !== "") return;
+                  dispatch({
+                    type: "UPDATE_FURNITURE",
+                    payload: {
+                      id: furniture.id,
+                      updates: { width: 0 }
+                    }
+                  });
+                  setWidthInput("0");
+                }}
               />
             </label>
             <label>
@@ -80,16 +101,30 @@ export default function FurnitureEditor({ furniture, isMobile, dispatch }) {
               <input
                 type="number"
                 step="0.01"
-                value={mmToM(furniture.height)}
-                onChange={e =>
+                value={heightInput}
+                onChange={e => {
+                  const next = e.target.value;
+                  setHeightInput(next);
+                  if (next === "") return;
                   dispatch({
                     type: "UPDATE_FURNITURE",
                     payload: {
                       id: furniture.id,
-                      updates: { height: mToMm(e.target.value) }
+                      updates: { height: mToMm(next) }
                     }
-                  })
-                }
+                  });
+                }}
+                onBlur={e => {
+                  if (e.target.value !== "") return;
+                  dispatch({
+                    type: "UPDATE_FURNITURE",
+                    payload: {
+                      id: furniture.id,
+                      updates: { height: 0 }
+                    }
+                  });
+                  setHeightInput("0");
+                }}
               />
             </label>
             </div>

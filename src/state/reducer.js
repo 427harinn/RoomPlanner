@@ -24,8 +24,14 @@ const normalizeRadius = radius => ({
 const createRoom = ({ name, width, height, x, y, radius } = {}) => ({
   id: createId(),
   name: name ?? "部屋",
-  width: toNumber(width) || DEFAULT_ROOM.width,
-  height: toNumber(height) || DEFAULT_ROOM.height,
+  width:
+    width === undefined || width === null || width === ""
+      ? DEFAULT_ROOM.width
+      : toNumber(width),
+  height:
+    height === undefined || height === null || height === ""
+      ? DEFAULT_ROOM.height
+      : toNumber(height),
   x: toNumber(x),
   y: toNumber(y),
   radius: radius ?? { tl: 0, tr: 0, br: 0, bl: 0 }
@@ -54,8 +60,8 @@ const normalizeRoom = room => {
   return {
     id: room?.id ?? createId(),
     name: room?.name ?? "部屋",
-    width: width > 0 ? width : DEFAULT_ROOM.width,
-    height: height > 0 ? height : DEFAULT_ROOM.height,
+    width: width >= 0 ? width : DEFAULT_ROOM.width,
+    height: height >= 0 ? height : DEFAULT_ROOM.height,
     x: toNumber(room?.x),
     y: toNumber(room?.y),
     radius: {
@@ -228,11 +234,11 @@ export function reducer(state, action) {
                 ...updates,
                 width:
                   updates.width !== undefined
-                    ? Math.max(1, toNumber(updates.width))
+                    ? Math.max(0, toNumber(updates.width))
                     : room.width,
                 height:
                   updates.height !== undefined
-                    ? Math.max(1, toNumber(updates.height))
+                    ? Math.max(0, toNumber(updates.height))
                     : room.height,
                 x:
                   updates.x !== undefined
