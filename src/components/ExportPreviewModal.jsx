@@ -12,6 +12,9 @@ const LABEL_LINE_HEIGHT = 1.25;
 const LABEL_PADDING = 1.5;
 const EDGE_GAP = 2.5;
 const INSIDE_GAP = 1;
+const OUTSIDE_GAP = 1.5;
+const MAX_OUTSIDE_DISTANCE = 25;
+const MIN_INSIDE_FONT = 2.5;
 
 const TYPE_LABELS = {
   door: "ドア",
@@ -239,6 +242,18 @@ const buildRoundedPath = (x, y, w, h, radius) => {
     .join(" ");
 };
 
+const degreesToRadius = (deg, w, h) => {
+  const clamped = Math.max(0, Math.min(90, Number(deg) || 0));
+  return (clamped / 90) * (Math.min(w, h) / 2);
+};
+
+const toCornerRadius = (radius, w, h) => ({
+  tl: degreesToRadius(radius?.tl, w, h),
+  tr: degreesToRadius(radius?.tr, w, h),
+  br: degreesToRadius(radius?.br, w, h),
+  bl: degreesToRadius(radius?.bl, w, h),
+});
+
 export default function ExportPreviewModal({
   rooms,
   furnitures,
@@ -336,6 +351,16 @@ export default function ExportPreviewModal({
         );
       };
 
+      const overlapsRoom = (box) =>
+        safeRooms.some((room) =>
+          intersects(box, {
+            x: room.x,
+            y: room.y,
+            width: room.width,
+            height: room.height,
+          }),
+        );
+
 
       const placeLabel = (aabb, ownObstacle, lines, fontSize, allowInside) => {
         const box = getLabelBox(lines, fontSize, scale);
@@ -346,8 +371,8 @@ export default function ExportPreviewModal({
         if (allowInside && innerMaxX >= innerMinX && innerMaxY >= innerMinY) {
           const centerX = aabb.cx - box.width / 2;
           const centerY = aabb.cy - box.height / 2;
-          const step = 4 / scale;
-          const rings = 5;
+        const step = 3 / scale;
+        const rings = 8;
           for (let ring = 0; ring <= rings; ring += 1) {
             for (let dx = -ring; dx <= ring; dx += 1) {
               for (let dy = -ring; dy <= ring; dy += 1) {
@@ -388,18 +413,18 @@ export default function ExportPreviewModal({
           },
           {
             x: aabb.cx - box.width / 2,
-            y: aabb.y - box.height - EDGE_GAP / scale,
+            y: aabb.y - box.height - OUTSIDE_GAP / scale,
           },
           {
             x: aabb.cx - box.width / 2,
-            y: aabb.y + aabb.h + EDGE_GAP / scale,
+            y: aabb.y + aabb.h + OUTSIDE_GAP / scale,
           },
           {
-            x: aabb.x + aabb.w + EDGE_GAP / scale,
+            x: aabb.x + aabb.w + OUTSIDE_GAP / scale,
             y: aabb.cy - box.height / 2,
           },
           {
-            x: aabb.x - box.width - EDGE_GAP / scale,
+            x: aabb.x - box.width - OUTSIDE_GAP / scale,
             y: aabb.cy - box.height / 2,
           },
         ];
@@ -422,13 +447,33 @@ export default function ExportPreviewModal({
           ) {
             continue;
           }
+          if (!candidate.inside) {
+            const dx =
+              candidateBox.x > aabb.x + aabb.w
+                ? candidateBox.x - (aabb.x + aabb.w)
+                : candidateBox.x + candidateBox.width < aabb.x
+                  ? aabb.x - (candidateBox.x + candidateBox.width)
+                  : 0;
+            const dy =
+              candidateBox.y > aabb.y + aabb.h
+                ? candidateBox.y - (aabb.y + aabb.h)
+                : candidateBox.y + candidateBox.height < aabb.y
+                  ? aabb.y - (candidateBox.y + candidateBox.height)
+                  : 0;
+            if (Math.hypot(dx, dy) > MAX_OUTSIDE_DISTANCE / scale) {
+              continue;
+            }
+            if (overlapsRoom(candidateBox)) {
+              continue;
+            }
+          }
           if (canPlace(candidateBox, ownObstacle)) {
             pushPlaced(candidateBox);
             return { ...candidateBox, lines, fontSize, lineHeight: box.lineHeight };
           }
         }
 
-        const step = 6 / scale;
+        const step = 4 / scale;
         const maxRing = 4;
         for (let ring = 1; ring <= maxRing; ring += 1) {
           for (let dx = -ring; dx <= ring; dx += 1) {
@@ -519,6 +564,14 @@ export default function ExportPreviewModal({
           cx: centerX,
           cy: centerY,
         };
+        const insideBounds = {
+          x: baseX,
+          y: baseY,
+          w: item.width,
+          h: item.height,
+          cx: baseX + item.width / 2,
+          cy: baseY + item.height / 2,
+        };
         const obstacle = obstacleById.get(item.id) ?? {
           x: aabb.x,
           y: aabb.y,
@@ -535,8 +588,8 @@ export default function ExportPreviewModal({
           lines,
           LABEL_FONT,
           scale,
-          aabb,
-          3,
+          insideBounds,
+          MIN_INSIDE_FONT,
           INSIDE_GAP,
         );
         if (override.moveToLegend) {
@@ -554,9 +607,15 @@ export default function ExportPreviewModal({
           });
           return;
         }
-        const allowInside = canFitInside(lines, fittedFont, scale, aabb, INSIDE_GAP);
+        const allowInside = canFitInside(
+          lines,
+          fittedFont,
+          scale,
+          insideBounds,
+          INSIDE_GAP,
+        );
         const label = placeLabel(
-          aabb,
+          insideBounds,
           obstacle,
           lines,
           fittedFont,
@@ -626,7 +685,7 @@ export default function ExportPreviewModal({
             LABEL_FONT,
             scale,
             aabb,
-            3,
+            MIN_INSIDE_FONT,
             INSIDE_GAP,
           );
           const obstacle = obstacleById.get(fixture.id) ?? {
@@ -1014,7 +1073,7 @@ export default function ExportPreviewModal({
                         room.y,
                         room.width,
                         room.height,
-                        room.radius,
+                        toCornerRadius(room.radius, room.width, room.height),
                       )}
                       fill="none"
                       stroke="#111"
@@ -1069,7 +1128,7 @@ export default function ExportPreviewModal({
                           baseY,
                           item.width,
                           item.height,
-                          item.radius,
+                          toCornerRadius(item.radius, item.width, item.height),
                         )}
                         fill={item.color ?? "#93c5fd"}
                         stroke="#111"
