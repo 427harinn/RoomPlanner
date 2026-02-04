@@ -30,5 +30,14 @@ export const getScaleForRooms = (
 };
 
 export const getDisplaySize = (furniture) => {
-  return { w: furniture.width, h: furniture.height };
+  const rotation = Number(furniture.rotation) || 0;
+  const rad = (rotation * Math.PI) / 180;
+  const cos = Math.abs(Math.cos(rad));
+  const sin = Math.abs(Math.sin(rad));
+  const w = Number(furniture.width) || 0;
+  const h = Number(furniture.height) || 0;
+  return {
+    w: w * cos + h * sin,
+    h: w * sin + h * cos,
+  };
 };

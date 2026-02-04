@@ -19,6 +19,16 @@ export default function App() {
     state.rooms.find((room) => room.id === state.activeRoomId) || null;
   const selectedFurniture =
     state.furnitures.find((f) => f.id === state.selectedId) || null;
+  const selectedFixtureRoom =
+    state.rooms.find((room) =>
+      (room.fixtures ?? []).some(
+        (fixture) => fixture.id === state.selectedFixtureId,
+      ),
+    ) || null;
+  const selectedFixture =
+    selectedFixtureRoom?.fixtures?.find(
+      (fixture) => fixture.id === state.selectedFixtureId,
+    ) || null;
   const [openRooms, setOpenRooms] = useState({});
   const [selectionSource, setSelectionSource] = useState("list");
   const [editing, setEditing] = useState({
@@ -43,6 +53,7 @@ export default function App() {
 
   const showRoomEditor = Boolean(state.activeRoomId);
   const showFurnitureEditor = Boolean(state.selectedId);
+  const showFixtureEditor = Boolean(state.selectedFixtureId);
   const viewRoomId =
     viewMode === "room"
       ? (state.activeRoomId ?? selectedFurniture?.roomId ?? null)
@@ -145,6 +156,7 @@ export default function App() {
   const listContent = (
     <ObjectListPanel
       state={state}
+      selectedFixtureId={state.selectedFixtureId}
       openRooms={openRooms}
       setOpenRooms={setOpenRooms}
       selectedRoomId={selectedRoomId}
@@ -171,8 +183,11 @@ export default function App() {
       activeRoom={activeRoom}
       roomsCount={state.rooms.length}
       selectedFurniture={selectedFurniture}
+      selectedFixture={selectedFixture}
+      selectedFixtureRoom={selectedFixtureRoom}
       showRoomEditor={showRoomEditor}
       showFurnitureEditor={showFurnitureEditor}
+      showFixtureEditor={showFixtureEditor}
       dispatch={dispatch}
       isMobile={false}
     />
@@ -182,8 +197,11 @@ export default function App() {
       activeRoom={activeRoom}
       roomsCount={state.rooms.length}
       selectedFurniture={selectedFurniture}
+      selectedFixture={selectedFixture}
+      selectedFixtureRoom={selectedFixtureRoom}
       showRoomEditor={showRoomEditor}
       showFurnitureEditor={showFurnitureEditor}
+      showFixtureEditor={showFixtureEditor}
       dispatch={dispatch}
       isMobile
     />
@@ -206,6 +224,7 @@ export default function App() {
             rooms={state.rooms}
             furnitures={state.furnitures}
             selectedId={state.selectedId}
+            selectedFixtureId={state.selectedFixtureId}
             activeRoomId={state.activeRoomId}
             viewMode={viewMode}
             viewRoomId={viewRoomId}

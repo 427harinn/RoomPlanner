@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 
 const mmToM = (value) => value / 1000;
 const mToMm = (value) => Number(value) * 1000;
-
 export default function RoomEditor({ room, roomsCount, isMobile, dispatch }) {
   const [sizeOpen, setSizeOpen] = useState(!isMobile);
   const [positionOpen, setPositionOpen] = useState(!isMobile);
@@ -17,6 +16,7 @@ export default function RoomEditor({ room, roomsCount, isMobile, dispatch }) {
     setPositionOpen(!isMobile);
     setRadiusOpen(!isMobile);
   }, [isMobile]);
+
   useEffect(() => {
     if (!room) return;
     setWidthInput(String(mmToM(room.width)));
@@ -24,10 +24,11 @@ export default function RoomEditor({ room, roomsCount, isMobile, dispatch }) {
     setXInput(String(mmToM(room.x)));
     setYInput(String(mmToM(room.y)));
   }, [room]);
+
   if (!room) {
     return (
       <div className="panel__section">
-        <h2>部屋情報</h2>
+        <h2>部屋編集</h2>
         <p className="muted">部屋を選択してください</p>
       </div>
     );
@@ -35,7 +36,7 @@ export default function RoomEditor({ room, roomsCount, isMobile, dispatch }) {
 
   return (
     <div className="panel__section">
-      <h2>部屋情報</h2>
+      <h2>部屋編集</h2>
       <div className="form-grid editor-group editor-group--open">
         <label>
           名前
@@ -58,7 +59,7 @@ export default function RoomEditor({ room, roomsCount, isMobile, dispatch }) {
         <summary>サイズ</summary>
         <div className="form-grid">
           <label>
-            横(m)
+            幅(m)
             <input
               type="number"
               step="0.01"
@@ -89,7 +90,7 @@ export default function RoomEditor({ room, roomsCount, isMobile, dispatch }) {
             />
           </label>
           <label>
-            縦(m)
+            高さ(m)
             <input
               type="number"
               step="0.01"
@@ -126,10 +127,10 @@ export default function RoomEditor({ room, roomsCount, isMobile, dispatch }) {
         open={positionOpen}
         onToggle={(event) => setPositionOpen(event.currentTarget.open)}
       >
-        <summary>座標</summary>
+        <summary>位置</summary>
         <div className="form-grid">
           <label>
-            位置X(m)
+            座標X(m)
             <input
               type="number"
               step="0.01"
@@ -160,7 +161,7 @@ export default function RoomEditor({ room, roomsCount, isMobile, dispatch }) {
             />
           </label>
           <label>
-            位置Y(m)
+            座標Y(m)
             <input
               type="number"
               step="0.01"

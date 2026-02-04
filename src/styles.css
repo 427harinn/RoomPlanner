@@ -100,6 +100,75 @@ body {
   margin-top: 0;
 }
 
+.fixture-add-row {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border: 1px dashed #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.fixture-add-row__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.fixture-add-row__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.fixture-list {
+  margin: 8px 0 4px;
+  padding: 8px;
+  border: 1px dashed #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  display: grid;
+  gap: 6px;
+}
+
+.fixture-list__title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.fixture-list__items {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.fixture-list__item {
+  font-size: 12px;
+  color: #475569;
+}
+
+.fixture-list__button {
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: 12px;
+  color: #334155;
+  cursor: pointer;
+}
+
+.fixture-list__button:hover {
+  color: #0f172a;
+}
+
+.fixture-type-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2933;
+}
+
 .panel--editor {
   overflow: auto;
 }
@@ -342,6 +411,15 @@ input[type="range"] {
 
 .editor-actions {
   margin-top: 8px;
+}
+
+.fixture-row {
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  border: 1px dashed #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
 }
 
 .muted {
