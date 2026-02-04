@@ -1,6 +1,11 @@
 import React from "react";
 
-export default function MobileDrawer({ mobileTab, setMobileTab, listContent, editorContent }) {
+export default function MobileDrawer({
+  mobileTab,
+  setMobileTab,
+  listContent,
+  editorContent,
+}) {
   return (
     <div className="mobile-drawer" aria-label="モバイルメニュー">
       <div className="mobile-drawer__tabs">

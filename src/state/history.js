@@ -4,12 +4,12 @@ export const initHistory = () => ({
   past: [],
   present: initialState,
   future: [],
-  isDragging: false
+  isDragging: false,
 });
 
 const nonRecordableActions = new Set(["SELECT_FURNITURE", "SET_ACTIVE_ROOM"]);
 
-const isMoveAction = action =>
+const isMoveAction = (action) =>
   action.type === "MOVE_ROOM" || action.type === "MOVE_FURNITURE";
 
 export const historyReducer = (state, action) => {
@@ -22,7 +22,7 @@ export const historyReducer = (state, action) => {
         past: state.past.slice(0, -1),
         present: previous,
         future: [state.present, ...state.future],
-        isDragging: false
+        isDragging: false,
       };
     }
     case "REDO": {
@@ -33,7 +33,7 @@ export const historyReducer = (state, action) => {
         past: [...state.past, state.present],
         present: next,
         future: state.future.slice(1),
-        isDragging: false
+        isDragging: false,
       };
     }
     case "BEGIN_DRAG": {
@@ -42,13 +42,13 @@ export const historyReducer = (state, action) => {
         ...state,
         past: [...state.past, state.present],
         future: [],
-        isDragging: true
+        isDragging: true,
       };
     }
     case "END_DRAG": {
       return {
         ...state,
-        isDragging: false
+        isDragging: false,
       };
     }
     default: {
@@ -57,20 +57,20 @@ export const historyReducer = (state, action) => {
       if (state.isDragging && isMoveAction(action)) {
         return {
           ...state,
-          present: newPresent
+          present: newPresent,
         };
       }
       if (nonRecordableActions.has(action.type)) {
         return {
           ...state,
-          present: newPresent
+          present: newPresent,
         };
       }
       return {
         ...state,
         past: [...state.past, state.present],
         present: newPresent,
-        future: []
+        future: [],
       };
     }
   }

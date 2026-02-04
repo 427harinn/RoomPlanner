@@ -6,10 +6,10 @@ export default function useKeyboardShortcuts({
   furnitureRef,
   clipboardRef,
   onDispatch,
-  onSetSelectionSource
+  onSetSelectionSource,
 }) {
   useEffect(() => {
-    const onKeyDown = event => {
+    const onKeyDown = (event) => {
       const target = event.target;
       const tagName = target?.tagName?.toLowerCase();
       if (
@@ -47,18 +47,18 @@ export default function useKeyboardShortcuts({
           if (currentFurniture) {
             clipboardRef.current = {
               type: "furniture",
-              data: { ...currentFurniture }
+              data: { ...currentFurniture },
             };
           } else if (currentRoom) {
             const roomFurnitures = currentState.furnitures.filter(
-              item => item.roomId === currentRoom.id
+              (item) => item.roomId === currentRoom.id,
             );
             clipboardRef.current = {
               type: "room",
               data: {
                 room: { ...currentRoom },
-                furnitures: roomFurnitures.map(item => ({ ...item }))
-              }
+                furnitures: roomFurnitures.map((item) => ({ ...item })),
+              },
             };
           } else {
             clipboardRef.current = { type: null, data: null };
@@ -75,13 +75,13 @@ export default function useKeyboardShortcuts({
               type: "PASTE_FURNITURE",
               payload: {
                 furniture: clipboard.data,
-                targetRoomId: currentRoom?.id ?? null
-              }
+                targetRoomId: currentRoom?.id ?? null,
+              },
             });
           } else if (clipboard.type === "room") {
             onDispatch({
               type: "PASTE_ROOM",
-              payload: clipboard.data
+              payload: clipboard.data,
             });
           }
         }
@@ -91,7 +91,10 @@ export default function useKeyboardShortcuts({
       if (event.key === "Backspace" || event.key === "Delete") {
         if (currentFurniture) {
           event.preventDefault();
-          onDispatch({ type: "DELETE_FURNITURE", payload: currentFurniture.id });
+          onDispatch({
+            type: "DELETE_FURNITURE",
+            payload: currentFurniture.id,
+          });
           return;
         }
         if (currentRoom) {
@@ -103,5 +106,12 @@ export default function useKeyboardShortcuts({
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [clipboardRef, onDispatch, onSetSelectionSource, roomRef, stateRef, furnitureRef]);
+  }, [
+    clipboardRef,
+    onDispatch,
+    onSetSelectionSource,
+    roomRef,
+    stateRef,
+    furnitureRef,
+  ]);
 }

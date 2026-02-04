@@ -7,11 +7,11 @@ export default function ImportExport({ state, dispatch }) {
     const payload = {
       rooms: state.rooms,
       furnitures: state.furnitures,
-      gridMM: state.gridMM
+      gridMM: state.gridMM,
     };
 
     const blob = new Blob([JSON.stringify(payload, null, 2)], {
-      type: "application/json"
+      type: "application/json",
     });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -21,7 +21,7 @@ export default function ImportExport({ state, dispatch }) {
     URL.revokeObjectURL(url);
   };
 
-  const handleImport = event => {
+  const handleImport = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
 

@@ -9,16 +9,16 @@ export default function SettingsModal({
   rooms,
   furnitures,
   dispatch,
-  onClose
+  onClose,
 }) {
   const handleExport = () => {
     const payload = {
       rooms,
       furnitures,
-      gridMM
+      gridMM,
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], {
-      type: "application/json"
+      type: "application/json",
     });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -28,7 +28,7 @@ export default function SettingsModal({
     URL.revokeObjectURL(url);
   };
 
-  const handleImport = event => {
+  const handleImport = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
@@ -43,7 +43,7 @@ export default function SettingsModal({
     reader.readAsText(file);
   };
 
-  const handleGridChange = event => {
+  const handleGridChange = (event) => {
     const next = event.target.value;
     setGridInput(next);
     if (next === "") return;
@@ -51,11 +51,11 @@ export default function SettingsModal({
     if (!Number.isFinite(parsed) || parsed < 0) return;
     dispatch({
       type: "SET_GRID_MM",
-      payload: Math.max(1, Math.round(parsed * 1000))
+      payload: Math.max(1, Math.round(parsed * 1000)),
     });
   };
 
-  const handleGridBlur = event => {
+  const handleGridBlur = (event) => {
     if (event.target.value !== "") return;
     dispatch({ type: "SET_GRID_MM", payload: 1 });
     setGridInput("0.001");
@@ -68,7 +68,7 @@ export default function SettingsModal({
         role="dialog"
         aria-modal="true"
         aria-label="Settings"
-        onClick={event => event.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
       >
         <div className="modal__header">
           <h2>Settings</h2>
@@ -120,7 +120,9 @@ export default function SettingsModal({
                     onBlur={handleGridBlur}
                   />
                 </label>
-                <p className="muted">You can also double-click the grid label.</p>
+                <p className="muted">
+                  You can also double-click the grid label.
+                </p>
               </div>
             </div>
           )}

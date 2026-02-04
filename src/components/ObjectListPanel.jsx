@@ -16,7 +16,7 @@ export default function ObjectListPanel({
   setViewMode,
   setMobileTab,
   isMobile,
-  dispatch
+  dispatch,
 }) {
   return (
     <>
@@ -53,9 +53,9 @@ export default function ObjectListPanel({
       <div className="panel__section panel__section--list">
         <h2>部屋 / 家具</h2>
         <ul className="object-list">
-          {state.rooms.map(room => {
+          {state.rooms.map((room) => {
             const roomFurnitures = state.furnitures.filter(
-              item => item.roomId === room.id
+              (item) => item.roomId === room.id,
             );
             const isOpen = Boolean(openRooms[room.id]);
             const isEditingRoom =
@@ -65,11 +65,11 @@ export default function ObjectListPanel({
                 <details
                   className="object-list__group"
                   open={isOpen}
-                  onToggle={event => {
+                  onToggle={(event) => {
                     const isOpenNext = event.currentTarget?.open ?? false;
-                    setOpenRooms(prev => ({
+                    setOpenRooms((prev) => ({
                       ...prev,
-                      [room.id]: isOpenNext
+                      [room.id]: isOpenNext,
                     }));
                   }}
                 >
@@ -81,10 +81,10 @@ export default function ObjectListPanel({
                       setSelectionSource("list");
                       dispatch({
                         type: "SET_ACTIVE_ROOM",
-                        payload: room.id
+                        payload: room.id,
                       });
                     }}
-                    onDoubleClick={event => {
+                    onDoubleClick={(event) => {
                       event.preventDefault();
                       event.stopPropagation();
                       setSelectionSource("list");
@@ -97,14 +97,14 @@ export default function ObjectListPanel({
                         className="inline-input"
                         value={editing.value}
                         autoFocus
-                        onChange={event =>
-                          setEditing(prev => ({
+                        onChange={(event) =>
+                          setEditing((prev) => ({
                             ...prev,
-                            value: event.target.value
+                            value: event.target.value,
                           }))
                         }
                         onBlur={commitEditing}
-                        onKeyDown={event => {
+                        onKeyDown={(event) => {
                           if (event.key === "Enter") {
                             commitEditing();
                           }
@@ -118,7 +118,7 @@ export default function ObjectListPanel({
                     )}
                   </summary>
                   <ul className="object-list__children">
-                    {roomFurnitures.map(item => (
+                    {roomFurnitures.map((item) => (
                       <li key={item.id} className="object-list__child">
                         {editing.type === "furniture" &&
                         editing.id === item.id ? (
@@ -126,14 +126,14 @@ export default function ObjectListPanel({
                             className="inline-input inline-input--child"
                             value={editing.value}
                             autoFocus
-                            onChange={event =>
-                              setEditing(prev => ({
+                            onChange={(event) =>
+                              setEditing((prev) => ({
                                 ...prev,
-                                value: event.target.value
+                                value: event.target.value,
                               }))
                             }
                             onBlur={commitEditing}
-                            onKeyDown={event => {
+                            onKeyDown={(event) => {
                               if (event.key === "Enter") {
                                 commitEditing();
                               }
@@ -152,10 +152,10 @@ export default function ObjectListPanel({
                               setSelectionSource("list");
                               dispatch({
                                 type: "SELECT_FURNITURE",
-                                payload: item.id
+                                payload: item.id,
                               });
                             }}
-                            onDoubleClick={event => {
+                            onDoubleClick={(event) => {
                               event.preventDefault();
                               event.stopPropagation();
                               setSelectionSource("list");
@@ -175,16 +175,16 @@ export default function ObjectListPanel({
               </li>
             );
           })}
-          {state.furnitures.some(item => !item.roomId) && (
+          {state.furnitures.some((item) => !item.roomId) && (
             <li className="object-list__item">
               <details
                 className="object-list__group"
                 open={Boolean(openRooms.unassigned)}
-                onToggle={event => {
+                onToggle={(event) => {
                   const isOpenNext = event.currentTarget?.open ?? false;
-                  setOpenRooms(prev => ({
+                  setOpenRooms((prev) => ({
                     ...prev,
-                    unassigned: isOpenNext
+                    unassigned: isOpenNext,
                   }));
                 }}
               >
@@ -198,8 +198,8 @@ export default function ObjectListPanel({
                 </summary>
                 <ul className="object-list__children">
                   {state.furnitures
-                    .filter(item => !item.roomId)
-                    .map(item => (
+                    .filter((item) => !item.roomId)
+                    .map((item) => (
                       <li key={item.id} className="object-list__child">
                         {editing.type === "furniture" &&
                         editing.id === item.id ? (
@@ -207,14 +207,14 @@ export default function ObjectListPanel({
                             className="inline-input inline-input--child"
                             value={editing.value}
                             autoFocus
-                            onChange={event =>
-                              setEditing(prev => ({
+                            onChange={(event) =>
+                              setEditing((prev) => ({
                                 ...prev,
-                                value: event.target.value
+                                value: event.target.value,
                               }))
                             }
                             onBlur={commitEditing}
-                            onKeyDown={event => {
+                            onKeyDown={(event) => {
                               if (event.key === "Enter") {
                                 commitEditing();
                               }
@@ -233,10 +233,10 @@ export default function ObjectListPanel({
                               setSelectionSource("list");
                               dispatch({
                                 type: "SELECT_FURNITURE",
-                                payload: item.id
+                                payload: item.id,
                               });
                             }}
-                            onDoubleClick={event => {
+                            onDoubleClick={(event) => {
                               event.preventDefault();
                               event.stopPropagation();
                               setSelectionSource("list");

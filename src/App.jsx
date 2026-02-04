@@ -9,18 +9,22 @@ import SettingsModal from "./components/SettingsModal.jsx";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts.js";
 
 export default function App() {
-  const [history, dispatch] = useReducer(historyReducer, undefined, initHistory);
+  const [history, dispatch] = useReducer(
+    historyReducer,
+    undefined,
+    initHistory,
+  );
   const state = history.present;
   const activeRoom =
-    state.rooms.find(room => room.id === state.activeRoomId) || null;
+    state.rooms.find((room) => room.id === state.activeRoomId) || null;
   const selectedFurniture =
-    state.furnitures.find(f => f.id === state.selectedId) || null;
+    state.furnitures.find((f) => f.id === state.selectedId) || null;
   const [openRooms, setOpenRooms] = useState({});
   const [selectionSource, setSelectionSource] = useState("list");
   const [editing, setEditing] = useState({
     type: null,
     id: null,
-    value: ""
+    value: "",
   });
   const [mobileTab, setMobileTab] = useState("list");
   const [isMobile, setIsMobile] = useState(() => {
@@ -34,18 +38,16 @@ export default function App() {
   const clipboardRef = useRef({ type: null, data: null });
   const selectedRoomId =
     state.activeRoomId ??
-    (selectedFurniture
-      ? selectedFurniture.roomId ?? "unassigned"
-      : null);
+    (selectedFurniture ? (selectedFurniture.roomId ?? "unassigned") : null);
 
   const showRoomEditor = Boolean(state.activeRoomId);
   const showFurnitureEditor = Boolean(state.selectedId);
   const viewRoomId =
     viewMode === "room"
-      ? state.activeRoomId ?? selectedFurniture?.roomId ?? null
+      ? (state.activeRoomId ?? selectedFurniture?.roomId ?? null)
       : null;
   const canToggleViewMode = Boolean(
-    state.activeRoomId || selectedFurniture?.roomId
+    state.activeRoomId || selectedFurniture?.roomId,
   );
   const latestStateRef = useRef(state);
   const latestRoomRef = useRef(activeRoom);
@@ -61,13 +63,13 @@ export default function App() {
     if (editing.type === "room") {
       dispatch({
         type: "UPDATE_ROOM",
-        payload: { id: editing.id, updates: { name: value || "部屋" } }
+        payload: { id: editing.id, updates: { name: value || "部屋" } },
       });
     }
     if (editing.type === "furniture") {
       dispatch({
         type: "UPDATE_FURNITURE",
-        payload: { id: editing.id, updates: { name: value || "家具" } }
+        payload: { id: editing.id, updates: { name: value || "家具" } },
       });
     }
     setEditing({ type: null, id: null, value: "" });
@@ -92,7 +94,7 @@ export default function App() {
     if (selectionSource === "canvas") {
       setOpenRooms({ [selectedRoomId]: true });
     } else {
-      setOpenRooms(prev => ({ ...prev, [selectedRoomId]: true }));
+      setOpenRooms((prev) => ({ ...prev, [selectedRoomId]: true }));
     }
   }, [selectedRoomId, selectionSource]);
 
@@ -126,11 +128,14 @@ export default function App() {
     furnitureRef: latestFurnitureRef,
     clipboardRef,
     onDispatch: dispatch,
-    onSetSelectionSource: setSelectionSource
+    onSetSelectionSource: setSelectionSource,
   });
 
-  const dispatchFromCanvas = action => {
-    if (action.type === "SET_ACTIVE_ROOM" || action.type === "SELECT_FURNITURE") {
+  const dispatchFromCanvas = (action) => {
+    if (
+      action.type === "SET_ACTIVE_ROOM" ||
+      action.type === "SELECT_FURNITURE"
+    ) {
       setSelectionSource("canvas");
     }
     dispatch(action);
@@ -202,14 +207,16 @@ export default function App() {
             viewRoomId={viewRoomId}
             canToggleViewMode={canToggleViewMode}
             onToggleViewMode={() =>
-              setViewMode(prev => (prev === "all" ? "room" : "all"))
+              setViewMode((prev) => (prev === "all" ? "room" : "all"))
             }
             gridMM={state.gridMM}
             dispatch={dispatchFromCanvas}
           />
         </section>
 
-        <section className="panel panel--editor">{editorContentDesktop}</section>
+        <section className="panel panel--editor">
+          {editorContentDesktop}
+        </section>
       </div>
 
       <MobileDrawer
@@ -235,6 +242,3 @@ export default function App() {
     </div>
   );
 }
-
-
-
