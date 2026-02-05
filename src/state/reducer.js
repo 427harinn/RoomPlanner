@@ -18,6 +18,7 @@ const FIXTURE_DEFAULTS = {
   door: { width: 700, height: 200 },
   window: { width: 1400, height: 160 },
   outlet: { width: 120, height: 80 },
+  lan: { width: 120, height: 80 },
   pillar: { width: 320, height: 320 },
 };
 const DEFAULT_TEMPLATE = {
@@ -49,7 +50,9 @@ const normalizeRadius = (radius) => ({
 });
 
 const normalizeFixture = (fixture) => {
-  const type = ["door", "window", "outlet", "pillar"].includes(fixture?.type)
+  const type = ["door", "window", "outlet", "lan", "pillar"].includes(
+    fixture?.type,
+  )
     ? fixture.type
     : DEFAULT_FIXTURE.type;
   const wall = ["top", "right", "bottom", "left", "free"].includes(
