@@ -28,6 +28,7 @@ export default function RoomCanvas({
     door: "#0f172a",
     window: "#38bdf8",
     outlet: "#f59e0b",
+    lan: "#22c55e",
     pillar: "#64748b",
   };
   const formatMeters = (value) => {

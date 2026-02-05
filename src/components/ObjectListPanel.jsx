@@ -35,6 +35,8 @@ export default function ObjectListPanel({
         return "ドア";
       case "window":
         return "窓";
+      case "lan":
+        return "LANポート";
       case "pillar":
         return "柱";
       default:
@@ -175,6 +177,32 @@ export default function ObjectListPanel({
               }}
             >
               コンセント
+            </button>
+            <button
+              className="btn btn--ghost btn--small"
+              type="button"
+              disabled={!targetRoomId}
+              onClick={() => {
+                const room = state.rooms.find(
+                  (entry) => entry.id === targetRoomId,
+                );
+                const size = 120;
+                dispatch({
+                  type: "ADD_FIXTURE",
+                  payload: {
+                    roomId: targetRoomId,
+                    fixture: {
+                      type: "lan",
+                      width: size,
+                      height: 80,
+                      x: room ? room.width / 2 - size / 2 : 0,
+                      y: room ? room.height / 2 - 40 : 0,
+                    },
+                  },
+                });
+              }}
+            >
+              LANポート
             </button>
             <button
               className="btn btn--ghost btn--small"
@@ -339,6 +367,7 @@ export default function ObjectListPanel({
                             door: 0,
                             window: 0,
                             outlet: 0,
+                            lan: 0,
                             pillar: 0,
                           };
                           return roomFixtures.map((fixture) => {

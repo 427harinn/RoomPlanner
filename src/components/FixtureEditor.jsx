@@ -4,6 +4,7 @@ const fixtureTypeLabel = (fixture) => {
   if (!fixture) return "";
   if (fixture.type === "door") return "ドア";
   if (fixture.type === "window") return "窓";
+  if (fixture.type === "lan") return "LANポート";
   if (fixture.type === "pillar") return "柱";
   return "コンセント";
 };

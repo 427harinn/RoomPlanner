@@ -20,6 +20,7 @@ const TYPE_LABELS = {
   door: "ドア",
   window: "窓",
   outlet: "コンセント",
+  lan: "LANポート",
   pillar: "柱",
 };
 
@@ -657,7 +658,7 @@ export default function ExportPreviewModal({
           const size =
             fixture.type === "window" || fixture.type === "door"
               ? `${formatMeters(fixture.width)}`
-              : fixture.type === "outlet"
+              : fixture.type === "outlet" || fixture.type === "lan"
                 ? ""
                 : `${formatMeters(fixture.width)} × ${formatMeters(fixture.height)}`;
           const memo = fixture.memo?.trim();
@@ -670,7 +671,7 @@ export default function ExportPreviewModal({
                 ? memo
                   ? [`${labelName}: ${size}`, memo]
                   : [`${labelName}: ${size}`]
-                : fixture.type === "outlet"
+              : fixture.type === "outlet" || fixture.type === "lan"
                   ? memo
                     ? [labelName, memo]
                     : [labelName]
