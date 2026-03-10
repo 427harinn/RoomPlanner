@@ -2,3 +2,6 @@ node_modules/
 dist/
 .DS_Store
 node_modules/.cache/gh-pages/
+.env
+.env.local
+.env.*.local
