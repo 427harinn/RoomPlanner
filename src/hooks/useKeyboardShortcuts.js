@@ -8,6 +8,7 @@ export default function useKeyboardShortcuts({
   fixtureRoomRef,
   clipboardRef,
   onDispatch,
+  onSave,
   onSetSelectionSource,
   isBlocked,
 }) {
@@ -169,6 +170,10 @@ export default function useKeyboardShortcuts({
             });
           }
         }
+        if (event.key.toLowerCase() === "s") {
+          event.preventDefault();
+          onSave?.();
+        }
         return;
       }
 
@@ -204,6 +209,7 @@ export default function useKeyboardShortcuts({
   }, [
     clipboardRef,
     onDispatch,
+    onSave,
     onSetSelectionSource,
     roomRef,
     stateRef,

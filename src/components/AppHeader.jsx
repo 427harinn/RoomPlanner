@@ -3,13 +3,22 @@ import React from "react";
 export default function AppHeader({
   canUndo,
   canRedo,
+  canSave,
+  currentLayoutName,
   onUndo,
   onRedo,
+  onSave,
+  onNewSet,
   onOpenSettings,
 }) {
   return (
     <header className="app__header">
-      <h1>Room Planner</h1>
+      <div className="app__header-title">
+        <h1>Room Planner</h1>
+        <p className="app__header-layout">
+          Current Set: {currentLayoutName || "Unsaved"}
+        </p>
+      </div>
       <div className="app__header-actions">
         <button
           className="btn btn--ghost btn--small"
@@ -17,7 +26,7 @@ export default function AppHeader({
           onClick={onUndo}
           disabled={!canUndo}
         >
-          戻る
+          Undo
         </button>
         <button
           className="btn btn--ghost btn--small"
@@ -25,7 +34,22 @@ export default function AppHeader({
           onClick={onRedo}
           disabled={!canRedo}
         >
-          進む
+          Redo
+        </button>
+        <button
+          className="btn btn--ghost btn--small"
+          type="button"
+          onClick={onSave}
+          disabled={!canSave}
+        >
+          Save
+        </button>
+        <button
+          className="btn btn--ghost btn--small"
+          type="button"
+          onClick={onNewSet}
+        >
+          New Set
         </button>
         <button
           className="btn btn--ghost btn--small"
