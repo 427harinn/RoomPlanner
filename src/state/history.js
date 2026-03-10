@@ -11,6 +11,7 @@ const nonRecordableActions = new Set([
   "SELECT_FURNITURE",
   "SELECT_FIXTURE",
   "SET_ACTIVE_ROOM",
+  "SET_TEMPLATES",
 ]);
 
 const isMoveAction = (action) =>

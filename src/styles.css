@@ -26,9 +26,20 @@ body {
   margin-bottom: 16px;
 }
 
+.app__header-title {
+  display: grid;
+  gap: 4px;
+}
+
 .app__header h1 {
   margin: 0;
   font-size: 24px;
+}
+
+.app__header-layout {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
 }
 
 .app__header-actions {
@@ -631,6 +642,82 @@ input[type="range"] {
 .modal__body .panel__section {
   padding-top: 0;
   border-top: none;
+}
+
+.auth-card {
+  display: grid;
+  gap: 12px;
+}
+
+.auth-mode-toggle {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.auth-error {
+  margin: 0;
+  color: #b91c1c;
+  font-size: 13px;
+}
+
+.cloud-save {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+  display: grid;
+  gap: 12px;
+}
+
+.cloud-save__header h4,
+.saved-layouts__header h4 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.saved-layouts {
+  display: grid;
+  gap: 10px;
+}
+
+.saved-layouts__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.saved-layouts__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.saved-layouts__item {
+  border: 1px solid #dbe3ee;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 10px;
+  background: #f8fafc;
+}
+
+.saved-layouts__item.is-selected {
+  border-color: #0f172a;
+  background: #eef2ff;
+}
+
+.saved-layouts__meta {
+  display: grid;
+  gap: 4px;
+}
+
+.saved-layouts__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .export-modal .modal {

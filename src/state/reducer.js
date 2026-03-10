@@ -193,6 +193,32 @@ const normalizeTemplate = (t) => ({
 const normalizeTemplates = (templates) =>
   Array.isArray(templates) ? templates.map(normalizeTemplate) : [];
 
+const mergeTemplatesByName = (currentTemplates, importedTemplates) => {
+  if (importedTemplates.length === 0) {
+    return currentTemplates;
+  }
+
+  const importedByName = new Map(
+    importedTemplates.map((template) => [template.name.trim(), template]),
+  );
+
+  const merged = currentTemplates.map((template) => {
+    const matched = importedByName.get(template.name.trim());
+    if (!matched) {
+      return template;
+    }
+
+    importedByName.delete(template.name.trim());
+    return {
+      ...template,
+      ...matched,
+      id: template.id,
+    };
+  });
+
+  return [...merged, ...importedByName.values()];
+};
+
 export const initialState = {
   rooms: [DEFAULT_ROOM_INSTANCE],
   activeRoomId: DEFAULT_ROOM_INSTANCE.id,
@@ -274,6 +300,26 @@ export const initialState = {
       radius: { tl: 4, tr: 4, br: 4, bl: 4 },
     },
   ]),
+};
+
+const createFreshLayoutState = (templates = initialState.templates) => {
+  const room = createRoom({
+    name: "部屋1",
+    width: DEFAULT_ROOM.width,
+    height: DEFAULT_ROOM.height,
+    x: DEFAULT_ROOM.x,
+    y: DEFAULT_ROOM.y,
+  });
+
+  return {
+    rooms: [room],
+    activeRoomId: room.id,
+    furnitures: [],
+    selectedId: null,
+    selectedFixtureId: null,
+    gridMM: DEFAULT_GRID_MM,
+    templates,
+  };
 };
 
 const normalizeLayout = (data) => {
@@ -715,11 +761,11 @@ export function reducer(state, action) {
         selectedId: null,
         selectedFixtureId: null,
         gridMM: normalized.gridMM,
-        templates:
-          normalized.templates.length > 0
-            ? normalized.templates
-            : state.templates,
+        templates: mergeTemplatesByName(state.templates, normalized.templates),
       };
+    }
+    case "RESET_LAYOUT": {
+      return createFreshLayoutState(state.templates);
     }
     case "SET_TEMPLATES": {
       return {
